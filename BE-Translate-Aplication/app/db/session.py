@@ -1,6 +1,5 @@
-from sqlalchemy import create_url
+from sqlalchemy import create_engine, make_url
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
 import os
 
 # Aquí leemos la URL que pusimos en el .env ayer

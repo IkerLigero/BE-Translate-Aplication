@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text
 from sqlalchemy.sql import func
-from app.db.base_class import Base # La crearemos ahora mismo
+from app.db.base_class import Base
 
 class Translation(Base):
     __tablename__ = "translations"
