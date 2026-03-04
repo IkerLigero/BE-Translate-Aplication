@@ -1,7 +1,7 @@
 #let translation_report(
-  id: "awdaw",
-  source_lang: "awdawd",
-  target_lang: "awdawd",
+  id: "",
+  source_lang: "",
+  target_lang: "",
   original_text: "",
   translated_text: "",
   date: ""
@@ -9,7 +9,7 @@
   set page(paper: "a4", margin: 2cm)
   set text(font: "linux libertine", size: 11pt)
 
-  // Cabecera
+  // Header
   
   grid(
     columns: (1fr, 1fr),
@@ -20,7 +20,7 @@
   line(length: 100%, stroke: 0.5pt + gray)
   v(1em)
 
-  // Info de la traducción
+  // Translation Info
   grid(
     columns: (1fr, 1fr),
     [*Source:* #source_lang],
@@ -29,7 +29,7 @@
   
   v(2em)
 
-  // Bloques de texto
+  // Text Blocks
   block(width: 100%, stroke: 0.5pt + luma(200), inset: 10pt, radius: 4pt)[
     #text(weight: "bold")[Original Text:] \
     #original_text
