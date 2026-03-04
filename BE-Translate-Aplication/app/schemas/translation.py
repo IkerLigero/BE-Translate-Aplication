@@ -17,8 +17,9 @@ class TranslationResponse(BaseModel):
     text_to_translate: str
     translated_text: Optional[str]
     source_lang: str
+    status: Optional[str]
     target_lang: str
     created_at: datetime
 
     class Config:
-        from_attributes = True
+        from_attributes = True # Conexion between SQLAlchemy model and Pydantic model with no errors.

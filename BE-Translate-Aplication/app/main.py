@@ -4,13 +4,12 @@ from app.api.endpoints import translations
 
 app = FastAPI(title="TMS - Translation Management System")
 
-# --- CONFIGURACIÓN DE CORS (El puente para Ibai) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allow any Frontend to connect. In production, change to the real URL.
+    allow_origins=["*"],   # permitir cualquier frontend
     allow_credentials=True,
-    allow_methods=["*"], # Allow GET, POST, PUT, DELETE, etc.
-    allow_headers=["*"], # Allow all headers.
+    allow_methods=["*"],   # permitir GET POST OPTIONS etc
+    allow_headers=["*"],
 )
 
 app.include_router(translations.router, prefix="/translations", tags=["Translations"])
