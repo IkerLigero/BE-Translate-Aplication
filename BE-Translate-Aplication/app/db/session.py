@@ -2,7 +2,6 @@ from sqlalchemy import create_engine, make_url
 from sqlalchemy.orm import sessionmaker
 import os
 
-# Aquí leemos la URL que pusimos en el .env ayer
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/tms_db")
 
 engine = create_engine(DATABASE_URL)
