@@ -2,7 +2,7 @@ import io
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-
+from datetime import timedelta
 from app.db.session import get_db
 from app.models.translation import Translation
 from app.schemas.translation import TranslationCreate, TranslationResponse
@@ -36,23 +36,22 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
 
 @router.get("/{translation_id}/pdf")
 def get_pdf(translation_id: int, db: Session = Depends(get_db)):
-    # 1. Buscar en DB
     translation = db.query(Translation).filter(Translation.id == translation_id).first()
     
     if not translation:
         raise HTTPException(status_code=404, detail="No encontrado")
 
-    # 2. Formatear datos
+    local_date = translation.created_at + timedelta(hours=1)
+
     pdf_data = {
         "id": str(translation.id),
         "source_lang": translation.source_lang,
         "target_lang": translation.target_language,
         "original_text": translation.original_text,
         "translated_text": translation.translated_text,
-        "date": translation.created_at.strftime("%d/%m/%Y %H:%M")
+        "date": local_date.strftime("%d/%m/%Y %H:%M") 
     }
 
-    # 3. Generar y enviar el PDF sin tocar el disco duro
     try:
         pdf_content = generate_translation_pdf_bytes(pdf_data)
         
@@ -64,4 +63,4 @@ def get_pdf(translation_id: int, db: Session = Depends(get_db)):
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error en generación: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al generar PDF: {str(e)}")
