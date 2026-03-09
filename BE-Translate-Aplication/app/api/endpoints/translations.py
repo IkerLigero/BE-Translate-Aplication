@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends
+import io
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+
 from app.db.session import get_db
 from app.models.translation import Translation
 from app.schemas.translation import TranslationCreate, TranslationResponse
-from typing import List
+from app.services.pdf_service import generate_translation_pdf_bytes
 
 router = APIRouter()
 
@@ -21,7 +24,6 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(db_translation)
     
-    
     return {
         "id": db_translation.id,
         "text_to_translate": db_translation.original_text,
@@ -31,27 +33,35 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
         "status": db_translation.status,
         "created_at": db_translation.created_at
     }
-    
-    
 
-@router.get("/", response_model=List[TranslationResponse])
-def list_translations(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-
-    # 1. Consulting the DB for translations with pagination
-    translations = db.query(Translation).offset(skip).limit(limit).all()
+@router.get("/{translation_id}/pdf")
+def get_pdf(translation_id: int, db: Session = Depends(get_db)):
+    # 1. Buscar en DB
+    translation = db.query(Translation).filter(Translation.id == translation_id).first()
     
-    # 2. Mapping the results to the format expected by TranslationResponse
-    # Since the column names in the DB and the Schema are different,
-    # we do it manually to avoid errors.
-    return [
-        {
-            "id": t.id,
-            "text_to_translate": t.original_text,
-            "translated_text": t.translated_text,
-            "source_lang": t.source_lang,
-            "target_lang": t.target_language,
-            "created_at": t.created_at,
-            "status": t.status
-        }
-        for t in translations
-    ]
+    if not translation:
+        raise HTTPException(status_code=404, detail="No encontrado")
+
+    # 2. Formatear datos
+    pdf_data = {
+        "id": str(translation.id),
+        "source_lang": translation.source_lang,
+        "target_lang": translation.target_language,
+        "original_text": translation.original_text,
+        "translated_text": translation.translated_text,
+        "date": translation.created_at.strftime("%d/%m/%Y %H:%M")
+    }
+
+    # 3. Generar y enviar el PDF sin tocar el disco duro
+    try:
+        pdf_content = generate_translation_pdf_bytes(pdf_data)
+        
+        return StreamingResponse(
+            io.BytesIO(pdf_content),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename=TMS_Report_{translation_id}.pdf"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en generación: {str(e)}")

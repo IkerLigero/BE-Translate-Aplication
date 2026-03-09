@@ -7,10 +7,9 @@
   date: ""
 ) = {
   set page(paper: "a4", margin: 2cm)
-  set text(font: "linux libertine", size: 11pt)
+  set text(font: "Arial", size: 11pt)
 
   // Header
-  
   grid(
     columns: (1fr, 1fr),
     [#text(size: 18pt, weight: "bold")[TMS Report]],
@@ -42,6 +41,6 @@
     #translated_text
   ]
 
-  v(anonymous)
+  v(1fr)
   align(bottom + right)[#text(size: 8pt, fill: gray)[Generated on #date]]
 }
