@@ -13,16 +13,15 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
         original_text=payload.text_to_translate,
         source_lang=payload.source_lang,
         target_language=payload.target_lang,
-        status="completed", # <--- Asegúrate de que esto se guarda
-        translated_text=f"Simulated: {payload.text_to_translate}"
+        status="pending",
+        translated_text=None
     )
     
     db.add(db_translation)
     db.commit()
     db.refresh(db_translation)
     
-    # FastAPI is smart and will map back to TranslationResponse automatically
-    # But we need to ensure that TranslationResponse understands the DB names or vice versa.
+    
     return {
         "id": db_translation.id,
         "text_to_translate": db_translation.original_text,

@@ -6,9 +6,9 @@ app = FastAPI(title="TMS - Translation Management System")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # permitir cualquier frontend
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],   # permitir GET POST OPTIONS etc
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
