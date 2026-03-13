@@ -1,46 +1,50 @@
-#let translation_report(
-  id: "",
-  source_lang: "",
-  target_lang: "",
-  original_text: "",
-  translated_text: "",
-  date: ""
-) = {
-  set page(paper: "a4", margin: 2cm)
-  set text(font: "Arial", size: 11pt)
+#import "@preview/linguify:0.5.0": linguify, set-database
 
-  // Header
-  grid(
-    columns: (1fr, 1fr),
-    [#text(size: 18pt, weight: "bold")[TMS Report]],
-    align(right)[#text(style: "italic")[ID: #id]]
-  )
+// Load the TOML
+#let lang_data = toml("lang.toml")
+#set-database(lang_data)
 
-  line(length: 100%, stroke: 0.5pt + gray)
-  v(1em)
+// Python inputs
+#let id = sys.inputs.at("id", default: "0")
+#let target_lang = sys.inputs.at("target_lang", default: "en")
+#let source_lang = sys.inputs.at("source_lang", default: "en")
+#let original_text = sys.inputs.at("original_text", default: "")
+#let translated_text = sys.inputs.at("translated_text", default: "")
+#let date = sys.inputs.at("date", default: "")
 
-  // Translation Info
-  grid(
-    columns: (1fr, 1fr),
-    [*Source:* #source_lang],
-    [*Target:* #target_lang]
-  )
-  
-  v(2em)
+// Text and language configuration
+#set page(paper: "a4", margin: 2cm)
+#set text(font: "Arial", size: 11pt, lang: target_lang)
 
-  // Text Blocks
-  block(width: 100%, stroke: 0.5pt + luma(200), inset: 10pt, radius: 4pt)[
-    #text(weight: "bold")[Original Text:] \
-    #original_text
-  ]
+// --- DESIGN ---
+#grid(
+  columns: (1fr, 1fr),
+  [#text(size: 18pt, weight: "bold")[#linguify("title")]],
+  align(right)[#text(style: "italic")[ID: #id]]
+)
 
-  v(1em)
+#line(length: 100%, stroke: 0.5pt + gray)
+#v(1em)
 
-  block(width: 100%, fill: luma(240), inset: 10pt, radius: 4pt)[
-    #text(weight: "bold")[Translated Result:] \
-    #translated_text
-  ]
+#grid(
+  columns: (1fr, 1fr),
+  [*#linguify("source"):* #source_lang],
+  [*#linguify("target"):* #target_lang]
+)
 
-  v(1fr)
-  align(bottom + right)[#text(size: 8pt, fill: gray)[Generated on #date]]
-}
+#v(2em)
+
+#block(width: 100%, stroke: 0.5pt + luma(240), inset: 10pt, radius: 4pt)[
+  #text(weight: "bold")[#linguify("orig_text")] \
+  #original_text
+]
+
+#v(1em)
+
+#block(width: 100%, fill: luma(245), inset: 10pt, radius: 4pt)[
+  #text(weight: "bold")[#linguify("trans_res")] \
+  #if translated_text != "" [#translated_text] else [#linguify("pending")]
+]
+
+#v(1fr)
+#align(bottom + right)[#text(size: 8pt, fill: gray)[#linguify("gen_on") #date]]

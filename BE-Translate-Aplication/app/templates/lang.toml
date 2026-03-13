@@ -1,0 +1,38 @@
+[conf]
+default-lang = "en"
+
+[lang.en]
+title = "Translation Report"
+source = "Source"
+target = "Target"
+orig_text = "Original Text"
+trans_res = "Translated Result"
+pending = "Pending..."
+gen_on = "Generated on"
+
+[lang.es]
+title = "Informe de Traducción"
+source = "Origen"
+target = "Destino"
+orig_text = "Texto Original"
+trans_res = "Resultado"
+pending = "Pendiente..."
+gen_on = "Generado el"
+
+[lang.de]
+title = "Übersetzungsbericht"
+source = "Quellsprache"
+target = "Zielsprache"
+orig_text = "Originaltext"
+trans_res = "Übersetztes Ergebnis"
+pending = "Übersetzung ausstehend..."
+gen_on = "Generiert am"
+
+[lang.fr]
+title = "Rapport de Traduction"
+source = "Langue Source"
+target = "Langue Cible"
+orig_text = "Texte Original"
+trans_res = "Résultat Traduit"
+pending = "Traduction en attente..."
+gen_on = "Généré le"

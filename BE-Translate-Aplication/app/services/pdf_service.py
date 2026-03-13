@@ -1,58 +1,60 @@
-from fpdf import FPDF
-import io
+import subprocess
+import os
+from pathlib import Path
 
 def generate_translation_pdf_bytes(data: dict) -> bytes:
-    # Create PDF instance and add a page
-    pdf = FPDF()
-    pdf.add_page()
     
-    # Configure colors and fonts (Arial is standard on Windows)
-    pdf.set_font("Arial", "B", 20)
-    pdf.set_text_color(44, 62, 80)
-    pdf.cell(100, 10, "TMS Report", ln=0)
+    # Resolves the path error on Windows by running the process from the templates directory.
+    # Route configuration
+    current_dir = Path(__file__).parent
+    templates_dir = current_dir.parent / "templates"
     
-    pdf.set_font("Arial", "I", 10)
-    pdf.set_text_color(127, 140, 141)
-    pdf.cell(0, 10, f"ID: {data['id']}", ln=1, align="R")
-    
-    # Divider line
-    pdf.set_draw_color(189, 195, 199)
-    pdf.line(10, 25, 200, 25)
-    pdf.ln(10)
-    
-    # Translation information
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(30, 8, "Source:", ln=0)
-    pdf.set_font("Arial", "", 11)
-    pdf.cell(60, 8, str(data['source_lang']), ln=0)
-    
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(30, 8, "Target:", ln=0)
-    pdf.set_font("Arial", "", 11)
-    pdf.cell(0, 8, str(data['target_lang']), ln=1)
-    
-    pdf.set_font("Arial", "I", 9)
-    pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 8, f"Generated on: {data['date']}", ln=1)
-    pdf.ln(5)
-    
-    # Original Text Block
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "Original Text:", ln=1)
-    pdf.set_font("Arial", "", 11)
-    pdf.multi_cell(0, 8, str(data['original_text']), border="T")
-    pdf.ln(10)
-    
-    # Translated Result Block (Light Gray)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "Translated Result:", ln=1)
-    pdf.set_fill_color(245, 245, 245)
-    pdf.set_font("Arial", "", 11)
-    
-    trans_text = str(data.get('translated_text') or "- PENDING TRANSLATION -")
-    pdf.multi_cell(0, 8, trans_text, border=1, fill=True)
-    
-    # Return bytes (FPDF2 returns bytes directly with .output())
-    return bytes(pdf.output())
+    template_name = "template.typ"
+    output_filename = f"temp_result_{data['id']}.pdf"
+    output_path = templates_dir / output_filename
+
+    # Preparation of the command for Typst
+    command = [
+        "typst",
+        "compile",
+        template_name,
+        output_filename,
+        "--input", f"id={data['id']}",
+        "--input", f"source_lang={data['source_lang']}",
+        "--input", f"target_lang={data['target_lang'].lower()}",
+        "--input", f"original_text={data['original_text']}",
+        "--input", f"translated_text={data.get('translated_text') or ''}",
+        "--input", f"date={data['date']}"
+    ]
+
+    try:
+        # Execution of Typst
+        # The secret is 'cwd', which places Typst inside /app/templates
+        result = subprocess.run(
+            command,
+            cwd=str(templates_dir),
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        # Reading the generated PDF
+        if not output_path.exists():
+            raise Exception("Typst did not generate the output file.")
+
+        with open(output_path, "rb") as f:
+            pdf_bytes = f.read()
+
+        # FAutomatic cleanup of the temporary file
+        os.remove(output_path)
+
+        return pdf_bytes
+
+    except subprocess.CalledProcessError as e:
+        # If Typst fails, capture the error for FastAPI log
+        error_output = e.stderr if e.stderr else e.stdout
+        print(f"--- CRITICAL TYPST ERROR ---\n{error_output}")
+        raise Exception(f"Typst failed: {error_output}")
+    except Exception as e:
+        print(f"--- SYSTEM ERROR ---\n{str(e)}")
+        raise e

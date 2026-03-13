@@ -21,7 +21,7 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
     )
     
     db.add(db_translation)
-    db.commit()
+    db.commit() 
     db.refresh(db_translation)
     
     return {
@@ -39,7 +39,7 @@ def get_pdf(translation_id: int, db: Session = Depends(get_db)):
     translation = db.query(Translation).filter(Translation.id == translation_id).first()
     
     if not translation:
-        raise HTTPException(status_code=404, detail="No encontrado")
+        raise HTTPException(status_code=404, detail="Not found")
 
     local_date = translation.created_at + timedelta(hours=1)
 
@@ -63,4 +63,4 @@ def get_pdf(translation_id: int, db: Session = Depends(get_db)):
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al generar PDF: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")
