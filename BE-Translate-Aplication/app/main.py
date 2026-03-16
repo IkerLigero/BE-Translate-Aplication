@@ -12,7 +12,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(translations.router, prefix="/translations", tags=["Translations"])
+app.include_router(
+    translations.router, 
+    prefix="/translations", 
+    tags=["Translations"]
+)
 
 @app.get("/")
 def read_root():
