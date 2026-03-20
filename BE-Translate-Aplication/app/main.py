@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import translations
 
-app = FastAPI(title="TMS - Translation Management System")
+# Disable redirect_slashes to strictly avoid trailing slashes
+app = FastAPI(title="TMS - Translation Management System", redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,6 +13,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include router without trailing slash in prefix
 app.include_router(
     translations.router, 
     prefix="/translations", 

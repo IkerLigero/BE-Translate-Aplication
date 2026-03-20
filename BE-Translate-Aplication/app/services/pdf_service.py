@@ -4,7 +4,6 @@ from pathlib import Path
 
 def generate_translation_pdf_bytes(data: dict) -> bytes:
     
-    # Resolves the path error on Windows by running the process from the templates directory.
     # Route configuration
     current_dir = Path(__file__).parent
     templates_dir = current_dir.parent / "templates"
@@ -26,10 +25,11 @@ def generate_translation_pdf_bytes(data: dict) -> bytes:
         "--input", f"translated_text={data.get('translated_text') or ''}",
         "--input", f"date={data['date']}"
     ]
-
+    
     try:
         # Execution of Typst
         # The secret is 'cwd', which places Typst inside /app/templates
+        # Runs the script.
         result = subprocess.run(
             command,
             cwd=str(templates_dir),
@@ -45,7 +45,7 @@ def generate_translation_pdf_bytes(data: dict) -> bytes:
         with open(output_path, "rb") as f:
             pdf_bytes = f.read()
 
-        # FAutomatic cleanup of the temporary file
+        # Automatic cleanup of the temporary file
         os.remove(output_path)
 
         return pdf_bytes
