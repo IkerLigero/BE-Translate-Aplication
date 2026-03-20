@@ -37,6 +37,7 @@ def get_all_translations(db: Session = Depends(get_db)):
 # 2. CREATE (POST) - Recive translation request and store in DB with status "pending"
 @router.post("", response_model=TranslationResponse)
 def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)):
+    # 1. Crear el registro en la DB
     db_translation = Translation(
         original_text=payload.text_to_translate,
         source_lang=payload.source_lang,
@@ -49,6 +50,20 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
     db.commit() 
     db.refresh(db_translation)
     
+    # 2. PREPARAR DATOS PARA EL PDF (Igual que lo tienes en el endpoint /generate)
+    pdf_data = {
+        "id": str(db_translation.id),
+        "source_lang": db_translation.source_lang,
+        "target_lang": db_translation.target_language,
+        "original_text": db_translation.original_text,
+        "translated_text": None, # El worker lo llenará
+        "date": db_translation.created_at.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    # 3. ¡AQUÍ ESTÁ EL TRUCO! Llamamos al worker automáticamente
+    process_pdf_task.delay(db_translation.id, pdf_data) 
+    
+    # 4. Devolvemos la respuesta al Front
     return {
         "id": db_translation.id,
         "text_to_translate": db_translation.original_text,
@@ -56,6 +71,19 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
         "source_lang": db_translation.source_lang,
         "target_lang": db_translation.target_language,
         "status": db_translation.status,
+        "created_at": db_translation.created_at
+    }
+
+    # 3. DISPARAMOS EL WORKER AQUÍ MISMO
+    process_pdf_task.delay(db_translation.id, pdf_data) 
+
+    return {
+        "id": db_translation.id,
+        "text_to_translate": db_translation.original_text,
+        "translated_text": None,
+        "source_lang": db_translation.source_lang,
+        "target_lang": db_translation.target_language,
+        "status": "pending",
         "created_at": db_translation.created_at
     }
 
@@ -109,13 +137,13 @@ def get_pdf(translation_id: int, db: Session = Depends(get_db)):
     
     if not translation:
         raise HTTPException(status_code=404, detail="Not found")
-
+    
     pdf_data = {
         "id": str(translation.id),
         "source_lang": translation.source_lang,
         "target_lang": translation.target_language,
         "original_text": translation.original_text,
-        "translated_text": translation.translated_text,
+        "translated_text": translation.translated_text, # <--- Ahora sí lee de la DB
         "date": translation.created_at.astimezone(ZoneInfo("Europe/Brussels")).strftime("%Y-%m-%d %H:%M:%S")
     }
 
