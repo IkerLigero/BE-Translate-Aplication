@@ -19,6 +19,11 @@ services:
     ports:
       - "6379:6379"
 
+  libretranslate:
+    image: libretranslate/libretranslate
+    ports:
+      - "5000:5000"
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: backend_pgadmin

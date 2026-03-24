@@ -37,6 +37,7 @@ def get_all_translations(db: Session = Depends(get_db)):
 # 2. CREATE (POST) - Recive translation request and store in DB with status "pending"
 @router.post("", response_model=TranslationResponse)
 def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)):
+    # 1. Crear el registro en la DB
     db_translation = Translation(
         original_text=payload.text_to_translate,
         source_lang=payload.source_lang,
@@ -49,6 +50,20 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
     db.commit() 
     db.refresh(db_translation)
     
+    # 2. PREPARAR DATOS PARA EL PDF (Igual que lo tienes en el endpoint /generate)
+    pdf_data = {
+        "id": str(db_translation.id),
+        "source_lang": db_translation.source_lang,
+        "target_lang": db_translation.target_language,
+        "original_text": db_translation.original_text,
+        "translated_text": None, # El worker lo llenará
+        "date": db_translation.created_at.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    # 3. ¡AQUÍ ESTÁ EL TRUCO! Llamamos al worker automáticamente
+    process_pdf_task.delay(db_translation.id, pdf_data) 
+    
+    # 4. Devolvemos la respuesta al Front
     return {
         "id": db_translation.id,
         "text_to_translate": db_translation.original_text,
@@ -56,6 +71,19 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
         "source_lang": db_translation.source_lang,
         "target_lang": db_translation.target_language,
         "status": db_translation.status,
+        "created_at": db_translation.created_at
+    }
+
+    # 3. DISPARAMOS EL WORKER AQUÍ MISMO
+    process_pdf_task.delay(db_translation.id, pdf_data) 
+
+    return {
+        "id": db_translation.id,
+        "text_to_translate": db_translation.original_text,
+        "translated_text": None,
+        "source_lang": db_translation.source_lang,
+        "target_lang": db_translation.target_language,
+        "status": "pending",
         "created_at": db_translation.created_at
     }
 
@@ -108,15 +136,30 @@ def get_pdf(translation_id: int, db: Session = Depends(get_db)):
     translation = db.query(Translation).filter(Translation.id == translation_id).first()
     
     if not translation:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(status_code=404, detail="Translation not found")
 
+    # Si el estado es error, no intentamos generar el PDF, avisamos al Front
+    if translation.status == "error":
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot generate PDF: The translation failed due to text length or API limits."
+        )
+
+    # Si está pendiente, también avisamos para que no descargue algo vacío
+    if translation.status == "pending":
+        raise HTTPException(
+            status_code=202, 
+            detail="Translation is still in progress. Please try again in a few seconds."
+        )
+
+    # Si está 'completed', procedemos normal
     pdf_data = {
         "id": str(translation.id),
         "source_lang": translation.source_lang,
         "target_lang": translation.target_language,
         "original_text": translation.original_text,
         "translated_text": translation.translated_text,
-        "date": translation.created_at.astimezone(ZoneInfo("Europe/Brussels")).strftime("%Y-%m-%d %H:%M:%S")
+        "date": translation.created_at.strftime("%Y-%m-%d %H:%M:%S")
     }
 
     try:
@@ -124,9 +167,7 @@ def get_pdf(translation_id: int, db: Session = Depends(get_db)):
         return StreamingResponse(
             io.BytesIO(pdf_content),
             media_type="application/pdf",
-            headers={
-                "Content-Disposition": f"attachment; filename=TMS_Report_{translation_id}.pdf"
-            }
+            headers={"Content-Disposition": f"attachment; filename=Report_{translation_id}.pdf"}
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error generating PDF file.")
