@@ -136,15 +136,30 @@ def get_pdf(translation_id: int, db: Session = Depends(get_db)):
     translation = db.query(Translation).filter(Translation.id == translation_id).first()
     
     if not translation:
-        raise HTTPException(status_code=404, detail="Not found")
-    
+        raise HTTPException(status_code=404, detail="Translation not found")
+
+    # Si el estado es error, no intentamos generar el PDF, avisamos al Front
+    if translation.status == "error":
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot generate PDF: The translation failed due to text length or API limits."
+        )
+
+    # Si está pendiente, también avisamos para que no descargue algo vacío
+    if translation.status == "pending":
+        raise HTTPException(
+            status_code=202, 
+            detail="Translation is still in progress. Please try again in a few seconds."
+        )
+
+    # Si está 'completed', procedemos normal
     pdf_data = {
         "id": str(translation.id),
         "source_lang": translation.source_lang,
         "target_lang": translation.target_language,
         "original_text": translation.original_text,
-        "translated_text": translation.translated_text, # <--- Ahora sí lee de la DB
-        "date": translation.created_at.astimezone(ZoneInfo("Europe/Brussels")).strftime("%Y-%m-%d %H:%M:%S")
+        "translated_text": translation.translated_text,
+        "date": translation.created_at.strftime("%Y-%m-%d %H:%M:%S")
     }
 
     try:
@@ -152,9 +167,7 @@ def get_pdf(translation_id: int, db: Session = Depends(get_db)):
         return StreamingResponse(
             io.BytesIO(pdf_content),
             media_type="application/pdf",
-            headers={
-                "Content-Disposition": f"attachment; filename=TMS_Report_{translation_id}.pdf"
-            }
+            headers={"Content-Disposition": f"attachment; filename=Report_{translation_id}.pdf"}
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error generating PDF file.")

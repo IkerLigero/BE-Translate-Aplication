@@ -13,7 +13,7 @@ def process_pdf_task(translation_id: int, pdf_data: dict):
             return "Error: ID not found"
 
         try:
-            # Intentamos traducir
+            # Try translating the text using Google Translate API
             translated = GoogleTranslator(
                 source=translation.source_lang.lower(), 
                 target=translation.target_language.lower()
@@ -27,16 +27,16 @@ def process_pdf_task(translation_id: int, pdf_data: dict):
             pdf_data["translated_text"] = translated
 
         except Exception as e:
-            # SI FALLA LA TRADUCCIÓN (TEXTO LARGO)
+            # If translation fails (e.g., long text)
             print(f"API Error: {e}")
-            translation.translated_text = "Error in translation" # <--- ESTO ELIMINA EL PENDING
+            translation.translated_text = "Error in translation"
             translation.status = "error"
             pdf_data["translated_text"] = "Error in translation"
 
-        # Guardamos en la base de datos SÍ O SÍ antes de generar el PDF
+        # Store the updated translation in the database
         db.commit()
 
-        # Generamos el PDF con los datos actualizados (ya sea el texto o el error)
+        # Generate the PDF using the provided data
         generate_translation_pdf_bytes(pdf_data)
         
         return f"Task finished for ID {translation_id}"
