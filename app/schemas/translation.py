@@ -14,12 +14,13 @@ class TranslationCreate(BaseModel):
 # What we return to the Frontend
 class TranslationResponse(BaseModel):
     id: int
-    text_to_translate: str
+    original_text: str = Field(alias="text_to_translate") 
     translated_text: Optional[str]
     source_lang: str
     status: Optional[str]
-    target_lang: str
+    target_language: str = Field(alias="target_lang")
     created_at: datetime
 
     class Config:
-        from_attributes = True # Connection between SQLAlchemy model and Pydantic model with no errors.
+        from_attributes = True
+        populate_by_name = True  # Connection between SQLAlchemy model and Pydantic model with no errors.
