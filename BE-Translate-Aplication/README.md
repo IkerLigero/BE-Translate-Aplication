@@ -1,12 +1,15 @@
-🌍 Automated Translation & PDF Report System
+# 🌍 Automated Translation & PDF Report System
  
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Celery](https://img.shields.io/badge/Celery-37814A?style=for-the-badge&logo=celery)](https://docs.celeryq.dev/)
 [![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Typst](https://img.shields.io/badge/Typst-239120?style=for-the-badge)](https://typst.app/docs/)
+
+
 A professional microservice designed for high-performance text translation and automated PDF report generation. This system uses a **distributed asynchronous architecture** to handle heavy workloads without blocking the user experience.
  
+
 ---
  
 ## 🏗️ System Architecture
