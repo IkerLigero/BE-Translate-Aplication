@@ -29,7 +29,6 @@ def generate_translation_pdf_bytes(data: dict) -> bytes:
     except Exception as e:
         print(f"Error en el parche de fecha: {e}")
         formatted_date = str(raw_date) # Si falla, al menos que no rompa la app
-    # ---------------------------------
 
     command = [
         "typst",
