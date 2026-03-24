@@ -138,21 +138,21 @@ def get_pdf(translation_id: int, db: Session = Depends(get_db)):
     if not translation:
         raise HTTPException(status_code=404, detail="Translation not found")
 
-    # Si el estado es error, no intentamos generar el PDF, avisamos al Front
+    # If the translation failed, we inform the user that the PDF cannot be generated due to translation issues (e.g., text too long for API limits).
     if translation.status == "error":
         raise HTTPException(
             status_code=400, 
             detail="Cannot generate PDF: The translation failed due to text length or API limits."
         )
 
-    # Si está pendiente, también avisamos para que no descargue algo vacío
+    # If the translation is still pending, we inform the user to avoid downloading an empty PDF
     if translation.status == "pending":
         raise HTTPException(
             status_code=202, 
             detail="Translation is still in progress. Please try again in a few seconds."
         )
 
-    # Si está 'completed', procedemos normal
+    # If the translation is 'completed', we proceed normally
     pdf_data = {
         "id": str(translation.id),
         "source_lang": translation.source_lang,
