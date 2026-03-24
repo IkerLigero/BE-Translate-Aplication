@@ -14,6 +14,7 @@ class Translation(Base):
     status = Column(String, default="pending")
     translated_text = Column(Text, nullable=True)
     created_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.datetime.now(datetime.timezone.utc)
-    )
+            DateTime(timezone=True), 
+            
+            default=lambda: datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1)))
+        )
