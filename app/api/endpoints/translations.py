@@ -34,10 +34,15 @@ def get_all_translations(db: Session = Depends(get_db)):
         })
     return results
 
-# 2. CREATE (POST) - Recive translation request and store in DB with status "pending"
+# 2. CREATE (POST) - Receive tranlation, store in DB as "pending", and trigger the worker to process the PDF in the background.
 @router.post("", response_model=TranslationResponse)
 def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)):
-    # 1. Crear el registro en la DB
+    """
+    Initializes a translation record in the database and dispatches 
+    the asynchronous processing task to the Celery worker.
+    """
+    
+    # Initialize database record with provided payload and "pending" status
     db_translation = Translation(
         original_text=payload.text_to_translate,
         source_lang=payload.source_lang,
@@ -46,24 +51,27 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
         translated_text=None
     )
     
+    # Persist the new record to the PostgreSQL database
     db.add(db_translation)
     db.commit() 
     db.refresh(db_translation)
     
-    # 2. PREPARAR DATOS PARA EL PDF (Igual que lo tienes en el endpoint /generate)
+    # Structure the data payload required by the Celery worker
     pdf_data = {
         "id": str(db_translation.id),
         "source_lang": db_translation.source_lang,
         "target_lang": db_translation.target_language,
         "original_text": db_translation.original_text,
-        "translated_text": None, # El worker lo llenará
+        "translated_text": None, 
         "date": db_translation.created_at.strftime("%Y-%m-%d %H:%M:%S")
     }
 
-    # 3. ¡AQUÍ ESTÁ EL TRUCO! Llamamos al worker automáticamente
+    # Trigger the asynchronous worker task using the .delay() method
+    # Call the worker for the new translation.
     process_pdf_task.delay(db_translation.id, pdf_data) 
     
-    # 4. Devolvemos la respuesta al Front
+    # Return the initial record state to the client
+    # The client receives a 200/201 response while processing continues in the background
     return {
         "id": db_translation.id,
         "text_to_translate": db_translation.original_text,
@@ -74,20 +82,8 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
         "created_at": db_translation.created_at
     }
 
-    # 3. DISPARAMOS EL WORKER AQUÍ MISMO
-    process_pdf_task.delay(db_translation.id, pdf_data) 
 
-    return {
-        "id": db_translation.id,
-        "text_to_translate": db_translation.original_text,
-        "translated_text": None,
-        "source_lang": db_translation.source_lang,
-        "target_lang": db_translation.target_language,
-        "status": "pending",
-        "created_at": db_translation.created_at
-    }
-
-# 3. LAUNCH ASYNCHRONOUS TASK (POST), told worker to generate PDF in background.
+# 3. LAUNCH ASYNCHRONOUS TASK (POST), Force the generation of the PDF for an existing translation
 @router.post("/{translation_id}/generate")
 def start_pdf_process(translation_id: int, db: Session = Depends(get_db)):
     translation = db.query(Translation).filter(Translation.id == translation_id).first()
@@ -104,6 +100,7 @@ def start_pdf_process(translation_id: int, db: Session = Depends(get_db)):
         "date": translation.created_at.astimezone(ZoneInfo("Europe/Brussels")).strftime("%Y-%m-%d %H:%M:%S")
     }
     
+    # Calls the worker for existing translations
     process_pdf_task.delay(translation_id, pdf_data) #delay() is the Celery method to launch the task asynchronously in the background.
     
     return {
@@ -130,7 +127,8 @@ def get_translation(translation_id: int, db: Session = Depends(get_db)):
         "created_at": translation.created_at
     }
 
-# 5. DOWNLOAD PDF (GET)
+
+# 5. DOWNLOAD PDF (GET) - Generate and return the PDF file for a specific translation
 @router.get("/{translation_id}/pdf")
 def get_pdf(translation_id: int, db: Session = Depends(get_db)):
     translation = db.query(Translation).filter(Translation.id == translation_id).first()
@@ -164,6 +162,7 @@ def get_pdf(translation_id: int, db: Session = Depends(get_db)):
 
     try:
         pdf_content = generate_translation_pdf_bytes(pdf_data)
+        # Return the PDF as a streaming response with appropriate headers for download  
         return StreamingResponse(
             io.BytesIO(pdf_content),
             media_type="application/pdf",

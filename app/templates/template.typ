@@ -4,7 +4,7 @@
 #let lang_data = toml("lang.toml")
 #set-database(lang_data)
 
-// Python inputs
+// Python inputs  from command line
 #let id = sys.inputs.at("id", default: "0")
 #let target_lang = sys.inputs.at("target_lang", default: "en")
 #let source_lang = sys.inputs.at("source_lang", default: "en")
@@ -14,7 +14,7 @@
 
 // Text and language configuration
 #set page(paper: "a4", margin: 2cm)
-#set text(font: "Arial", size: 11pt, lang: target_lang)
+#set text(font: "Arial", size: 11pt, lang: target_lang) // Set the default text properties for the entire page
 
 // --- DESIGN ---
 #grid(

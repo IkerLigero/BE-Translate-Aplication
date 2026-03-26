@@ -4,10 +4,12 @@ from app.db.session import SessionLocal
 from app.models.translation import Translation
 from deep_translator import GoogleTranslator
 
+# This Celery task processes the translation data, updates the database record, and generates the PDF using the provided data.
 @celery_app.task(name="process_pdf_task")
 def process_pdf_task(translation_id: int, pdf_data: dict):
     db = SessionLocal()
     try:
+        # Fetch the translation record from the database using the provided ID
         translation = db.query(Translation).filter(Translation.id == translation_id).first()
         if not translation:
             return "Error: ID not found"
