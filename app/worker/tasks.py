@@ -11,13 +11,16 @@ from app.core.storage import upload_pdf_to_minio # Importing the new storage uti
 def process_pdf_task(translation_id: int, pdf_data: dict):
     db = SessionLocal()
     try:
-        # Fetch the translation record from the database using the provided ID
         translation = db.query(Translation).filter(Translation.id == translation_id).first()
         if not translation:
             return "Error: ID not found"
 
+        # 1. Aseguramos que pdf_lang esté en el diccionario para el PDF
+        pdf_data["pdf_lang"] = translation.pdf_lang        # "fr"
+        pdf_data["target_lang"] = translation.target_language # "en"
+
         try:
-            # Try translating the text using Google Translate API
+            # 2. Usamos source_lang para la traducción (ya lo tienes bien)
             translated = GoogleTranslator(
                 source=translation.source_lang.lower(), 
                 target=translation.target_language.lower()
@@ -31,25 +34,18 @@ def process_pdf_task(translation_id: int, pdf_data: dict):
             pdf_data["translated_text"] = translated
 
         except Exception as e:
-            # If translation fails, mark the record with error status
             print(f"API Error: {e}")
             translation.translated_text = "Error in translation"
             translation.status = "error"
             pdf_data["translated_text"] = "Error in translation"
 
-        # Generate the PDF bytes using the service (Typst process)
+        # 3. Generar el PDF pasándole el pdf_data que ahora tiene pdf_lang
         pdf_bytes = generate_translation_pdf_bytes(pdf_data)
 
-        # Define a unique filename for the storage bucket
         file_name = f"translation_{translation_id}.pdf"
-
-        # Upload the generated PDF bytes to MinIO
         upload_pdf_to_minio(pdf_bytes, file_name)
 
-        # Update the database record with the file path reference
         translation.file_path = file_name
-        
-        # Commit all changes to the database
         db.commit()
         
         return f"Task finished and file stored for ID {translation_id}"

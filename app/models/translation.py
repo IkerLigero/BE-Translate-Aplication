@@ -9,6 +9,7 @@ class Translation(Base):
     id = Column(Integer, primary_key=True, index=True)
     original_text = Column(Text, nullable=False)
     target_language = Column(String, nullable=False)
+    pdf_lang = Column(String, nullable=False)
     source_lang = Column(String, nullable=False)
     status = Column(String, default="pending")
     translated_text = Column(Text, nullable=True)

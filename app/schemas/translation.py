@@ -5,8 +5,9 @@ from typing import Optional
 # What we receive from the Frontend
 class TranslationCreate(BaseModel):
     text_to_translate: str = Field(..., min_length=1, description="The text to translate")
-    source_lang: str = Field(..., min_length=2, max_length=2, description="Code of the source language (e.g. 'en')")
+    pdf_lang: str = Field(..., min_length=2, max_length=2, description="Code of the PDF language (e.g. 'en')")
     target_lang: str = Field(..., min_length=2, max_length=2, description="Code of the target language (e.g. 'es')")
+    source_lang: str = Field(..., min_length=2, max_length=2, description="Code of the source language (e.g. 'fr')")
 
 # ... -> obligatory field
 # description -> for documentation purposes in Swagger -> UI http://localhost:8000/docs
@@ -14,11 +15,12 @@ class TranslationCreate(BaseModel):
 # What we return to the Frontend
 class TranslationResponse(BaseModel):
     id: int
-    original_text: str = Field(alias="text_to_translate") 
+    text_to_translate: str = Field(alias="original_text")
     translated_text: Optional[str]
     source_lang: str
+    pdf_lang: str
+    target_lang: str = Field(alias="target_language")
     status: Optional[str]
-    target_language: str = Field(alias="target_lang")
     created_at: datetime
     file_path: Optional[str] = None
 
