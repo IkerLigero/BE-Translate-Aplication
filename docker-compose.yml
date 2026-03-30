@@ -21,8 +21,11 @@ services:
 
   libretranslate:
     image: libretranslate/libretranslate
+    container_name: backend_translator
     ports:
       - "5000:5000"
+    volumes:
+      - lt_data:/home/libretranslate/.local # Persist translation data
 
   pgadmin:
     image: dpage/pgadmin4
@@ -35,5 +38,21 @@ services:
     depends_on:
       - db
 
+  minio:
+    image: minio/minio:latest
+    container_name: backend_minio
+    restart: always
+    ports:
+      - "9000:9000" # API
+      - "9001:9001" # Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
 volumes:
   postgres_data:
+  minio_data:
+  lt_data:

@@ -3,8 +3,10 @@ from app.services.pdf_service import generate_translation_pdf_bytes
 from app.db.session import SessionLocal
 from app.models.translation import Translation
 from deep_translator import GoogleTranslator
+from app.core.storage import upload_pdf_to_minio # Importing the new storage utility
 
-# This Celery task processes the translation data, updates the database record, and generates the PDF using the provided data.
+# This Celery task processes the translation data, updates the database, 
+# generates a PDF, and stores it in MinIO.
 @celery_app.task(name="process_pdf_task")
 def process_pdf_task(translation_id: int, pdf_data: dict):
     db = SessionLocal()
@@ -29,19 +31,28 @@ def process_pdf_task(translation_id: int, pdf_data: dict):
             pdf_data["translated_text"] = translated
 
         except Exception as e:
-            # If translation fails (e.g., long text)
+            # If translation fails, mark the record with error status
             print(f"API Error: {e}")
             translation.translated_text = "Error in translation"
             translation.status = "error"
             pdf_data["translated_text"] = "Error in translation"
 
-        # Store the updated translation in the database
-        db.commit()
+        # Generate the PDF bytes using the service (Typst process)
+        pdf_bytes = generate_translation_pdf_bytes(pdf_data)
 
-        # Generate the PDF using the provided data
-        generate_translation_pdf_bytes(pdf_data)
+        # Define a unique filename for the storage bucket
+        file_name = f"translation_{translation_id}.pdf"
+
+        # Upload the generated PDF bytes to MinIO
+        upload_pdf_to_minio(pdf_bytes, file_name)
+
+        # Update the database record with the file path reference
+        translation.file_path = file_name
         
-        return f"Task finished for ID {translation_id}"
+        # Commit all changes to the database
+        db.commit()
+        
+        return f"Task finished and file stored for ID {translation_id}"
 
     except Exception as e:
         db.rollback()

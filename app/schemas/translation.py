@@ -20,6 +20,7 @@ class TranslationResponse(BaseModel):
     status: Optional[str]
     target_language: str = Field(alias="target_lang")
     created_at: datetime
+    file_path: Optional[str] = None
 
     class Config:
         from_attributes = True

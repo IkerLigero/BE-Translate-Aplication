@@ -1,6 +1,5 @@
 import datetime
 from zoneinfo import ZoneInfo
-
 from sqlalchemy import Column, Integer, String, DateTime, Text
 from app.db.base_class import Base
 
@@ -18,3 +17,4 @@ class Translation(Base):
             
             default=lambda: datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1)))
         )
+    file_path = Column(String, nullable=True)
