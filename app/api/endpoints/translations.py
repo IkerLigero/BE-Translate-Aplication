@@ -29,6 +29,7 @@ def get_all_translations(db: Session = Depends(get_db)):
             "text_to_translate": t.original_text,
             "translated_text": t.translated_text,
             "source_lang": t.source_lang,
+            "pdf_lang": t.pdf_lang,
             "target_lang": t.target_language,
             "status": t.status,
             "created_at": t.created_at
@@ -42,12 +43,13 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
     Initializes a translation record in the database and dispatches 
     the asynchronous processing task to the Celery worker.
     """
+    
     db_translation = Translation(
         original_text=payload.text_to_translate,
         source_lang=payload.source_lang,
+        pdf_lang=payload.pdf_lang,
         target_language=payload.target_lang,
-        status="pending",
-        translated_text=None
+        status="pending"
     )
     
     db.add(db_translation)
@@ -57,6 +59,7 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
     pdf_data = {
         "id": str(db_translation.id),
         "source_lang": db_translation.source_lang,
+        "pdf_lang": db_translation.pdf_lang,
         "target_lang": db_translation.target_language,
         "original_text": db_translation.original_text,
         "translated_text": None, 
@@ -70,6 +73,7 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
         "text_to_translate": db_translation.original_text,
         "translated_text": db_translation.translated_text,
         "source_lang": db_translation.source_lang,
+        "pdf_lang": db_translation.pdf_lang,
         "target_lang": db_translation.target_language,
         "status": db_translation.status,
         "created_at": db_translation.created_at
@@ -87,6 +91,7 @@ def start_pdf_process(translation_id: int, db: Session = Depends(get_db)):
     pdf_data = {
         "id": str(translation.id),
         "source_lang": translation.source_lang,
+        "pdf_lang": translation.pdf_lang,
         "target_lang": translation.target_language,
         "original_text": translation.original_text,
         "translated_text": translation.translated_text,
@@ -114,6 +119,7 @@ def get_translation(translation_id: int, db: Session = Depends(get_db)):
         "text_to_translate": translation.original_text,
         "translated_text": translation.translated_text,
         "source_lang": translation.source_lang,
+        "pdf_lang": translation.pdf_lang,
         "target_lang": translation.target_language,
         "status": translation.status,
         "created_at": translation.created_at

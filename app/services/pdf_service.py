@@ -7,6 +7,7 @@ from dateutil import parser
 # This service generates a PDF file from the translation data using Typst and returns it as bytes.
 def generate_translation_pdf_bytes(data: dict) -> bytes:
     
+    
     # Define paths and command for Typst
     current_dir = Path(__file__).parent
     templates_dir = current_dir.parent / "templates"
@@ -32,13 +33,13 @@ def generate_translation_pdf_bytes(data: dict) -> bytes:
         formatted_date = str(raw_date) # If it fails, break the app
 
     command = [
-        "typst",
-        "compile",
-        template_name,
-        output_filename,
+        "typst", "compile", template_name, output_filename,
         "--input", f"id={data['id']}",
         "--input", f"source_lang={data['source_lang']}",
-        "--input", f"target_lang={data['target_lang'].lower()}",
+        # El idioma al que se tradujo el texto
+        "--input", f"target_lang={data['target_lang'].lower()}", 
+        # El idioma que linguify usará para "Translation Report", "Source", etc.
+        "--input", f"pdf_lang={data.get('pdf_lang', 'en')}", 
         "--input", f"original_text={data['original_text']}",
         "--input", f"translated_text={data.get('translated_text') or ''}",
         "--input", f"date={formatted_date}"

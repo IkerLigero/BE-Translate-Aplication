@@ -4,22 +4,25 @@
 #let lang_data = toml("lang.toml")
 #set-database(lang_data)
 
-// Python inputs  from command line
+// Python inputs from command line
 #let id = sys.inputs.at("id", default: "0")
 #let target_lang = sys.inputs.at("target_lang", default: "en")
 #let source_lang = sys.inputs.at("source_lang", default: "en")
+#let pdf_lang = sys.inputs.at("pdf_lang", default: "en")
 #let original_text = sys.inputs.at("original_text", default: "")
 #let translated_text = sys.inputs.at("translated_text", default: "")
 #let date = sys.inputs.at("date", default: "")
 
 // Text and language configuration
 #set page(paper: "a4", margin: 2cm)
-#set text(font: "Arial", size: 11pt, lang: target_lang) // Set the default text properties for the entire page
+// Set text properties: 'lang' uses pdf_lang for static labels and general document locale
+#set text(font: "Arial", size: 11pt, lang: pdf_lang) 
 
 // --- DESIGN ---
 #grid(
   columns: (1fr, 1fr),
-  [#text(size: 18pt, weight: "bold")[#linguify("title")]],
+  // linguify uses pdf_lang as the key for the TOML database
+  [#text(size: 18pt, weight: "bold")[#linguify("title", lang: pdf_lang)]],
   align(right)[#text(style: "italic")[ID: #id]]
 )
 
@@ -28,23 +31,23 @@
 
 #grid(
   columns: (1fr, 1fr),
-  [*#linguify("source"):* #source_lang],
-  [*#linguify("target"):* #target_lang]
+  [*#linguify("source", lang: pdf_lang):* #source_lang],
+  [*#linguify("target", lang: pdf_lang):* #target_lang]
 )
 
 #v(2em)
 
 #block(width: 100%, stroke: 0.5pt + luma(240), inset: 10pt, radius: 4pt)[
-  #text(weight: "bold")[#linguify("orig_text")] \
+  #text(weight: "bold")[#linguify("orig_text", lang: pdf_lang)] \
   #original_text
 ]
 
 #v(1em)
 
 #block(width: 100%, fill: luma(245), inset: 10pt, radius: 4pt)[
-  #text(weight: "bold")[#linguify("trans_res")] \
-  #if translated_text != "" [#translated_text] else [#linguify("pending")]
+  #text(weight: "bold")[#linguify("trans_res", lang: pdf_lang)] \
+  #if translated_text != "" [#translated_text] else [#linguify("pending", lang: pdf_lang)]
 ]
 
 #v(1fr)
-#align(bottom + right)[#text(size: 8pt, fill: gray)[#linguify("gen_on") #date]]
+#align(bottom + right)[#text(size: 8pt, fill: gray)[#linguify("gen_on", lang: pdf_lang) #date]]
