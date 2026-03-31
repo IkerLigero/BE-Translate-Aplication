@@ -129,37 +129,48 @@ def get_translation(translation_id: int, db: Session = Depends(get_db)):
 # 5. DOWNLOAD PDF (GET) - Fetch the existing PDF from MinIO storage
 @router.get("/{translation_id}/pdf")
 def get_pdf(translation_id: int, db: Session = Depends(get_db)):
-    """
-    Retrieves the pre-generated PDF from MinIO storage instead of generating it on the fly.
-    """
     translation = db.query(Translation).filter(Translation.id == translation_id).first()
     
     if not translation:
         raise HTTPException(status_code=404, detail="Translation not found")
 
-    if translation.status == "error":
-        raise HTTPException(
-            status_code=400, 
-            detail="Cannot download PDF: The translation process failed."
-        )
+    # 1. INTENTO DE LECTURA DIRECTA: Si tenemos un path, probamos MinIO primero
+    if translation.file_path:
+        try:
+            pdf_stream = get_pdf_from_minio(translation.file_path)
+            return StreamingResponse(
+                pdf_stream,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename=Report_{translation_id}.pdf"}
+            )
+        except Exception as e:
+            # Si el archivo debería estar pero MinIO falla (borrado accidental, etc.)
+            print(f"File marked in DB but missing in MinIO: {e}")
+            # Continuamos hacia abajo para regenerarlo
 
-    if translation.status == "pending" or not translation.file_path:
+    # 2. VERIFICACIÓN DE ESTADO: Si está pendiente, que el front espere
+    if translation.status == "pending":
         raise HTTPException(
             status_code=202, 
-            detail="File not ready. Translation or PDF generation is still in progress."
+            detail="PDF is still being cooked. Please wait a few seconds."
         )
 
-    try:
-        # Fetch the file stream directly from MinIO using the stored file_path
-        pdf_stream = get_pdf_from_minio(translation.file_path)
-
-        # Return the file stream to the client
-        return StreamingResponse(
-            pdf_stream,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename=Report_{translation_id}.pdf"}
-        )
-    except Exception as e:
-        # If MinIO fails to find the object or connection is lost
-        print(f"Storage Error: {e}")
-        raise HTTPException(status_code=500, detail="Error retrieving PDF from storage.")
+    # 3. DISPARO DEL GENERADOR (FALLBACK): Si llegamos aquí es porque no hay PDF
+    # Preparamos los datos para el Worker
+    pdf_data = {
+        "id": str(translation.id),
+        "source_lang": translation.source_lang,
+        "pdf_lang": translation.pdf_lang,
+        "target_lang": translation.target_language,
+        "original_text": translation.original_text,
+        "translated_text": translation.translated_text, # Reutilizamos la traducción si ya existe
+        "date": translation.created_at.strftime("%Y-%m-%d %H:%M:%S")
+    }
+    
+    # Lanzamos la tarea de nuevo
+    process_pdf_task.delay(translation.id, pdf_data)
+    
+    raise HTTPException(
+        status_code=202, 
+        detail="PDF was missing. Regeneration task has been triggered. Try again in 5 seconds."
+    )
