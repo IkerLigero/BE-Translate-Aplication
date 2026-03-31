@@ -43,7 +43,7 @@ def create_translation(payload: TranslationCreate, db: Session = Depends(get_db)
     Initializes a translation record in the database and dispatches 
     the asynchronous processing task to the Celery worker.
     """
-    # --- DENTRO DE create_translation ---
+    
     db_translation = Translation(
         original_text=payload.text_to_translate,
         source_lang=payload.source_lang,
