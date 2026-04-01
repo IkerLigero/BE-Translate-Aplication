@@ -29,9 +29,9 @@ def process_pdf_task(self, translation_id: int, pdf_data: dict):
         pdf_data["pdf_lang"] = translation.pdf_lang
         pdf_data["target_lang"] = translation.target_language
 
-        # 2. Bloque de Traducción INTELIGENTE
+        # 2. Smart translation logic with retry for transient errors (like API issues)
         try:
-            # Si NO tenemos el texto ya traducido, llamamos a la API
+            # If we don't have the translated text yet, call the API
             if not translation.translated_text or translation.translated_text == "Translation Service Unavailable":
                 logger.info(f"Translating ID {translation_id} via Google API...")
                 translator = GoogleTranslator(
@@ -45,11 +45,11 @@ def process_pdf_task(self, translation_id: int, pdf_data: dict):
 
                 translation.translated_text = translated
                 pdf_data["translated_text"] = translated
-                # Guardamos la traducción de inmediato para que esté disponible si el PDF falla después
+                # Save the translation immediately so it's available if the PDF fails later
                 db.commit() 
             
             else:
-                # Si ya existe en DB, lo reutilizamos (ahorro de tiempo y API)
+                # If it already exists in DB, reuse it (saves time and API calls)
                 logger.info(f"Reusing existing translation for ID {translation_id}")
                 pdf_data["translated_text"] = translation.translated_text
             
@@ -60,7 +60,7 @@ def process_pdf_task(self, translation_id: int, pdf_data: dict):
             db.commit() 
             raise self.retry(exc=e)
 
-        # 3. Generación de PDF & MinIO (Esto siempre se ejecuta si no hay archivo)
+        # 3. PDF Generation & MinIO (This always runs if there's no file)
         try:
             pdf_bytes = generate_translation_pdf_bytes(pdf_data)
             file_name = f"translation_{translation_id}.pdf"
@@ -73,7 +73,7 @@ def process_pdf_task(self, translation_id: int, pdf_data: dict):
             
         except Exception as e:
             logger.error(f"PDF/Storage error for ID {translation_id}: {e}")
-            # Si el PDF falla, lo marcamos pero el texto traducido ya se quedó guardado arriba
+            # If the PDF fails, mark it as error but the translated text is already saved above
             translation.status = "error"
             db.commit()
             raise e 
@@ -82,11 +82,11 @@ def process_pdf_task(self, translation_id: int, pdf_data: dict):
 
     except Exception as e:
         db.rollback()
-        # Solo lo marcamos como error si no es un reintento programado de Celery
+        # Only mark as error if it's not a scheduled retry by Celery
         if not isinstance(e, self.retry_backoff_base):
             if translation:
                 translation.status = "error"
                 db.commit()
-        raise e # Es importante relanzar la excepción para que Celery gestione el reintento
+        raise e # It's important to re-raise the exception so Celery can handle the retry
     finally:
         db.close()

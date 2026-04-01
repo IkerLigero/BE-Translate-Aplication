@@ -12,8 +12,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Registramos el router global. 
-# Esto incluye AUTOMÁTICAMENTE a translations y a cualquier otro que añadas en api.py en el futuro.
+# Route setup - This includes ALL endpoints defined in api.py, which currently is just translations but can grow in the future.
 app.include_router(api_router)
 
 @app.get("/")
