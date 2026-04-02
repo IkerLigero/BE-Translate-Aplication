@@ -1,7 +1,12 @@
+import asyncio
+import time
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from app.db.session import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import List
+from app.db.session import get_db, get_async_db
 from app.models.translation import Translation
 from app.schemas.translation import TranslationCreate, TranslationResponse
 from app.core.storage import get_pdf_from_minio 
@@ -18,11 +23,33 @@ Endpoints for managing translations.
 5. GET /translations/{id}/pdf: Download PDF (with cache in MinIO)
 """
 
+# ---------------------------------------------------- TEST AREA ---------------------------------------------------------------------
 
-# 1. List all translations (with pagination and filters later)
-@router.get("", response_model=list[TranslationResponse])
-def get_all(db: Session = Depends(get_db)):
-    return db.query(Translation).order_by(Translation.created_at.desc()).all()
+# --- VERSION SÍNCRONA (La "lenta" bajo carga) ---
+# --- HISTORIAL (Quitamos la barra para probar) ---
+@router.get("", response_model=List[TranslationResponse]) # <--- Prueba dejándolo vacío o solo ""
+async def get_translations(db: AsyncSession = Depends(get_async_db)):
+    result = await db.execute(select(Translation).order_by(Translation.created_at.desc()))
+    translations = result.scalars().all()
+    return translations
+
+# --- TEST SÍNCRONO ---
+@router.get("/sync-list", response_model=List[TranslationResponse])
+def get_translations_sync(db: Session = Depends(get_db)):
+    time.sleep(1) 
+    translations = db.query(Translation).order_by(Translation.created_at.desc()).all()
+    return translations
+
+# --- TEST ASÍNCRONO (Añadido aparte para Locust) ---
+@router.get("/async-list", response_model=List[TranslationResponse])
+async def get_translations_async(db: AsyncSession = Depends(get_async_db)):
+    await asyncio.sleep(1) 
+    result = await db.execute(select(Translation).order_by(Translation.created_at.desc()))
+    translations = result.scalars().all()
+    return translations 
+
+# ---------------------------------------------------- TEST AREA ---------------------------------------------------------------------
+
 
 
 # 2. Create a new translation

@@ -52,6 +52,20 @@ services:
     volumes:
       - minio_data:/data
 
+  locust:
+    image: locustio/locust
+    container_name: backend_locust
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./:/mnt/locust
+    command: -f /mnt/locust/locustfile.py
+    depends_on:
+      - db
+      - redis
+
 volumes:
   postgres_data:
   minio_data:
