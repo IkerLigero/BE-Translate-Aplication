@@ -19,13 +19,14 @@ logger = logging.getLogger(__name__)
 # The task processes the translation and PDF generation, with robust error handling and retries for transient issues.
 def process_pdf_task(self, translation_id: int, pdf_data: dict):
     db = SessionLocal()
+    # If the task fails at any point, we want to catch the exception, log it, and retry if it's a transient error.
     try:
         translation = db.query(Translation).filter(Translation.id == translation_id).first()
         if not translation:
             logger.error(f"Translation ID {translation_id} not found in database.")
             return "Error: ID not found"
 
-        # 1. Sync data
+        # 1. Sync data to ensure we have the latest info from the DB
         pdf_data["pdf_lang"] = translation.pdf_lang
         pdf_data["target_lang"] = translation.target_language
 
@@ -40,6 +41,7 @@ def process_pdf_task(self, translation_id: int, pdf_data: dict):
                 )
                 translated = translator.translate(translation.original_text)
                 
+                # If the translation API returns an empty result, we consider it a failure and retry
                 if not translated:
                     raise ValueError("Translation returned empty result")
 
@@ -49,7 +51,7 @@ def process_pdf_task(self, translation_id: int, pdf_data: dict):
                 db.commit() 
             
             else:
-                # If it already exists in DB, reuse it (saves time and API calls)
+                # If it already exists in DB, reuse it
                 logger.info(f"Reusing existing translation for ID {translation_id}")
                 pdf_data["translated_text"] = translation.translated_text
             
