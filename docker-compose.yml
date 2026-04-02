@@ -56,7 +56,7 @@ services:
     image: locustio/locust
     container_name: backend_locust
     extra_hosts:
-      - "host.docker.internal:host-gateway" # <--- ESTO ES LA LLAVE
+      - "host.docker.internal:host-gateway"
     ports:
       - "8089:8089"
     volumes:
