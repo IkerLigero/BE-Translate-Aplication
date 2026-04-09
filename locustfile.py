@@ -1,11 +1,11 @@
 from locust import HttpUser, task, between
 
+# This is a simple Locust test file to simulate load on the two endpoints we created: the sync and async translation list endpoints.
 class TranslationUser(HttpUser):
     wait_time = between(1, 2) 
 
     @task
     def test_sync(self):
-        # La barra inicial es importante si el Host no la tiene
         self.client.get("/translations/sync-list")
 
     @task
