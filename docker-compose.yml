@@ -56,11 +56,11 @@ services:
     image: locustio/locust
     container_name: backend_locust
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "host.docker.internal:host-gateway" # Allows Locust to access services on the host machine
     ports:
       - "8089:8089"
     volumes:
-      - ./:/mnt/locust
+      - ./:/mnt/locust # Connect the current directory to /mnt/locust in the container
     command: -f /mnt/locust/locustfile.py
     depends_on:
       - db

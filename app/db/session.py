@@ -1,37 +1,29 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 import os
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import declarative_base
 
-# 1. URL that SQLAlchemy will use to connect to the database. We have two: one for async and one for sync operations.
-# The asyncpg driver is for FastAPI, the psycopg2 driver (default) is for Celery/Sync
+# 1. URL for async database operations using the asyncpg driver.
 ASYNC_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/tms_db")
-SYNC_DATABASE_URL = ASYNC_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
 
-# 2. ASYNC CONFIGURATION (For your new endpoints and Locust)
+# 2. ASYNC CONFIGURATION
 async_engine = create_async_engine(ASYNC_DATABASE_URL, echo=True)
+
+# The async_sessionmaker produces new AsyncSession objects when called.
+# expire_on_commit=False prevents SQLAlchemy from trying to refresh objects 
+# after a commit, which is the standard practice in async flows.
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,
     class_=AsyncSession,
     expire_on_commit=False,
 )
 
-# 3. SYNC CONFIGURATION (For the Worker/Celery and the sync test endpoint)
-sync_engine = create_engine(SYNC_DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
-
+# 3. BASE CLASS
+# Used by your models (Translation, etc.) to inherit from SQLAlchemy's declarative system.
 Base = declarative_base()
 
-# 4. Dependencies for FastAPI
-# This is the one your ASYNC endpoint will use (the new one for Locust)
+# 4. Dependency for FastAPI
+# This will be injected into your endpoints via Depends(get_async_db).
+# The 'async with' block ensures the session is automatically closed after the request.
 async def get_async_db():
     async with AsyncSessionLocal() as session:
         yield session
-
-# This is the one your SYNC endpoint will use (the old one for Celery and the sync test)
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()

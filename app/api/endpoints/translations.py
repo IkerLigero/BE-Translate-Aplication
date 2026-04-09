@@ -17,7 +17,7 @@ router = APIRouter()
 @router.get("", response_model=List[TranslationResponse])
 async def get_translations(db: AsyncSession = Depends(get_async_db)):
     """
-    Lista todas las traducciones ordenadas por fecha de creación descendente.
+    List all translations in the database, ordered by creation date (newest first).
     """
     result = await db.execute(
         select(Translation).order_by(Translation.created_at.desc())
@@ -30,8 +30,7 @@ async def get_translations(db: AsyncSession = Depends(get_async_db)):
 @router.post("", response_model=TranslationResponse)
 async def create(payload: TranslationCreate, db: AsyncSession = Depends(get_async_db)):
     """
-    Crea una nueva entrada en la DB e inicia el proceso de traducción.
-    Nota: Asegúrate de que TranslationService.create_translation_process sea 'async'.
+    Create a new translation entry in the database and start the translation process.
     """
     return await TranslationService.create_translation_process(db, payload)
 
@@ -39,14 +38,14 @@ async def create(payload: TranslationCreate, db: AsyncSession = Depends(get_asyn
 # 3. POST /translations/{id}/generate: Force generation (or regenerate)
 @router.post("/{translation_id}/generate")
 async def force_generate(translation_id: int, db: AsyncSession = Depends(get_async_db)):
-    # Buscamos la traducción
+    # Search for the translation in the database
     result = await db.execute(select(Translation).where(Translation.id == translation_id))
     translation = result.scalar_one_or_none()
     
     if not translation:
         raise HTTPException(status_code=404, detail="Translation not found")
     
-    # Disparamos la regeneración (debe ser async)
+    # Trigger regeneration (this will handle both pending and completed cases)
     await TranslationService.trigger_regeneration(db, translation)
     return {"status": "accepted", "message": "Regeneration triggered"}
 
@@ -71,20 +70,20 @@ async def download_pdf(translation_id: int, db: AsyncSession = Depends(get_async
     if not translation:
         raise HTTPException(status_code=404, detail="Translation not found")
 
-    # Paso A: Si ya existe en MinIO, lo servimos
+    # Step A: If the PDF is already generated and stored, serve it directly
     if translation.file_path:
         try:
-            # Nota: Si get_pdf_from_minio es bloqueante, podrías envolverlo en un thread
-            # o usar un cliente de MinIO asíncrono.
+            # Note: If get_pdf_from_minio is blocking, you could wrap it in a thread
+            # or use an asynchronous MinIO client.
             pdf_stream = get_pdf_from_minio(translation.file_path)
             return StreamingResponse(pdf_stream, media_type="application/pdf")
         except Exception:
             pass 
 
-    # Paso B: Si está pendiente, avisamos al frontend
+    # Step B: If the translation is still pending, notify the frontend
     if translation.status == "pending":
         raise HTTPException(status_code=202, detail="Still processing...")
 
-    # Paso C: Si falta el archivo, regeneramos
+    # Step C: If the file is missing, trigger regeneration
     await TranslationService.trigger_regeneration(db, translation)
     raise HTTPException(status_code=202, detail="PDF was missing. Regeneration started.")
