@@ -52,15 +52,17 @@ services:
     volumes:
       - minio_data:/data
 
-  locust:
+locust:
     image: locustio/locust
     container_name: backend_locust
+    environment:
+      - PYTHONPATH=/mnt/locust
     extra_hosts:
-      - "host.docker.internal:host-gateway" # Allows Locust to access services on the host machine
+      - "host.docker.internal:host-gateway"
     ports:
       - "8089:8089"
     volumes:
-      - ./:/mnt/locust # Connect the current directory to /mnt/locust in the container
+      - ./locust:/mnt/locust
     command: -f /mnt/locust/locustfile.py
     depends_on:
       - db

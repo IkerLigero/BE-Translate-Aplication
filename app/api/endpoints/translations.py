@@ -73,8 +73,6 @@ async def download_pdf(translation_id: int, db: AsyncSession = Depends(get_async
     # Step A: If the PDF is already generated and stored, serve it directly
     if translation.file_path:
         try:
-            # Note: If get_pdf_from_minio is blocking, you could wrap it in a thread
-            # or use an asynchronous MinIO client.
             pdf_stream = get_pdf_from_minio(translation.file_path)
             return StreamingResponse(pdf_stream, media_type="application/pdf")
         except Exception:

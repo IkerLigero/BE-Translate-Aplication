@@ -32,6 +32,6 @@ def upload_pdf_to_minio(file_bytes, object_name):
 # This function can be used to retrieve the PDF stream for the download endpoint.
 def get_pdf_from_minio(object_name):
     """Retrieves a file stream from MinIO."""
-    bucket = os.getenv("MINIO_BUCKET_NAME", "translations")
+    bucket = os.getenv("MINIO_BUCKET_NAME", "translations") # Ensure this matches the bucket used for uploads
     response = s3_client.get_object(Bucket=bucket, Key=object_name)
     return response['Body'] # This returns the stream for StreamingResponse
