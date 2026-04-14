@@ -1,6 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.api import api_router 
+from app.models.user import User 
+from app.models.translation import Translation
+from app.db.base_class import Base
+from app.db.session import engine
 
 app = FastAPI(title="TMS - Translation Management System", redirect_slashes=False)
 
@@ -18,3 +22,10 @@ app.include_router(api_router)
 @app.get("/")
 def read_root():
     return {"message": "Translation API is ready and open for the Frontend"}
+
+@app.on_event("startup")
+async def startup_event():
+    async with engine.begin() as conn:
+        # Esto lee tus clases User y Translation y crea las tablas en Postgres
+        await conn.run_sync(Base.metadata.create_all)
+    print("Base de datos sincronizada!")

@@ -1,12 +1,13 @@
 import datetime
-from zoneinfo import ZoneInfo
-from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
+from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 
 class Translation(Base):
     __tablename__ = "translations"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     original_text = Column(Text, nullable=False)
     target_language = Column(String, nullable=False)
     pdf_lang = Column(String, nullable=False)
@@ -19,3 +20,6 @@ class Translation(Base):
             default=lambda: datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=1)))
         )
     file_path = Column(String, nullable=True)
+    
+    # Relationship to the User model
+    owner = relationship("User", back_populates="translations")
