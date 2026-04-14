@@ -4,6 +4,9 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
+from datetime import timedelta
+from app.core.storage import s3_client
+import os
 
 from app.db.session import get_async_db
 from app.models.translation import Translation
@@ -70,18 +73,30 @@ async def download_pdf(translation_id: int, db: AsyncSession = Depends(get_async
     if not translation:
         raise HTTPException(status_code=404, detail="Translation not found")
 
-    # Step A: If the PDF is already generated and stored, serve it directly
     if translation.file_path:
         try:
-            pdf_stream = get_pdf_from_minio(translation.file_path)
-            return StreamingResponse(pdf_stream, media_type="application/pdf")
-        except Exception:
-            pass 
+            # 2. Usamos s3_client de boto3 para generar la URL firmada
+            bucket = os.getenv("MINIO_BUCKET_NAME", "translations")
+            url = s3_client.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': bucket,
+                    'Key': translation.file_path
+                },
+                ExpiresIn=900 # 15 minutos (900 segundos)
+            )
+            # 3. Devolvemos el JSON con la URL como te pidió el jefe
+            return {"download_url": url}
+            
+        except Exception as e:
+            # Si algo falla con S3, logeamos y lanzamos error
+            print(f"Error generando URL: {e}")
+            raise HTTPException(status_code=500, detail="Could not generate download link")
 
-    # Step B: If the translation is still pending, notify the frontend
+    # Si sigue procesando
     if translation.status == "pending":
         raise HTTPException(status_code=202, detail="Still processing...")
 
-    # Step C: If the file is missing, trigger regeneration
+    # Si el archivo no está pero debería, regeneramos
     await TranslationService.trigger_regeneration(db, translation)
     raise HTTPException(status_code=202, detail="PDF was missing. Regeneration started.")

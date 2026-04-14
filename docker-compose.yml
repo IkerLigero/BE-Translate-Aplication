@@ -52,7 +52,7 @@ services:
     volumes:
       - minio_data:/data
 
-locust:
+  locust:
     image: locustio/locust
     container_name: backend_locust
     environment:
