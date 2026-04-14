@@ -55,12 +55,14 @@ services:
   locust:
     image: locustio/locust
     container_name: backend_locust
+    environment:
+      - PYTHONPATH=/mnt/locust
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
       - "8089:8089"
     volumes:
-      - ./:/mnt/locust
+      - ./locust:/mnt/locust
     command: -f /mnt/locust/locustfile.py
     depends_on:
       - db
