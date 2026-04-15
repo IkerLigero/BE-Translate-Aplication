@@ -4,10 +4,13 @@ from app.api.api import api_router
 from app.models.user import User 
 from app.models.translation import Translation
 from app.db.base_class import Base
-from app.db.session import engine
+from app.db.session import async_engine as engine
+from app.api.endpoints import login, users
 
 app = FastAPI(title="TMS - Translation Management System", redirect_slashes=False)
-
+app.include_router(login.router, tags=["Auth"]) 
+app.include_router(users.router, prefix="/users", tags=["Usuarios"])
+app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

@@ -65,11 +65,13 @@ def process_pdf_task(self, translation_id: int, pdf_data: dict):
         # 3. PDF Generation & MinIO (This always runs if there's no file)
         try:
             pdf_bytes = generate_translation_pdf_bytes(pdf_data)
-            file_name = f"translation_{translation_id}.pdf"
+        
+            user_id = pdf_data.get("user_id")
+            file_name = f"user_{user_id}/translation_{translation_id}.pdf"
             
             upload_pdf_to_minio(pdf_bytes, file_name)
             
-            translation.file_path = file_name
+            translation.file_path = file_name # Ahora guarda 'user_X/archivo.pdf'
             translation.status = "completed"
             db.commit()
             
