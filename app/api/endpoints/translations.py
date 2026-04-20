@@ -15,7 +15,7 @@ from app.schemas.translation import TranslationCreate, TranslationResponse
 from app.core.storage import get_pdf_from_minio 
 from app.services.translation_service import TranslationService
 
-from app.api.deps import get_current_user # Importamos la dependencia
+from app.api.deps import get_current_user
 from app.models.user import User
 
 router = APIRouter()
@@ -23,18 +23,15 @@ router = APIRouter()
 
 # 1. GET /translations: List all translations
 @router.get("", response_model=List[TranslationResponse])
-# Only return translations that belong to the current user
 async def get_translations(
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user) # Lo mantenemos porque usamos su ID
 ):
-    # Filter translations by user_id to ensure users only see their own translations
     result = await db.execute(
         select(Translation)
         .where(Translation.user_id == current_user.id)
         .order_by(Translation.created_at.desc())
     )
-    # Return only the translations that belong to the current user, ordered by creation date
     return result.scalars().all()
 
 
@@ -104,28 +101,28 @@ async def download_pdf(
     result = await db.execute(query)
     translation = result.scalar_one_or_none()
 
-    # Case A: The ID simply does not exist for this user
     if not translation:
         raise HTTPException(status_code=404, detail="Translation not found")
 
-    # Case B: The record exists, but the Worker hasn't uploaded the file yet
-    if not translation.file_path or translation.status != "completed":
-        # Use 202 (Accepted) or 204 (No Content) instead of 404
-        # This tells the Frontend: "I'm working on it, don't show an error"
-        raise HTTPException(
-            status_code=202, 
-            detail="PDF generation in progress"
-        )
-
     try:
+        # Intentamos obtenerlo de MinIO
         file_stream = get_pdf_from_minio(translation.file_path)
         return StreamingResponse(
             file_stream,
             media_type="application/pdf",
-            headers={
-                "Content-Disposition": f"attachment; filename=translation_{translation_id}.pdf"
-            }
+            headers={"Content-Disposition": f"attachment; filename=translation_{translation_id}.pdf"}
         )
-    except Exception as e:
-        # Case C: The DB says the file is there, but MinIO is missing it
-        raise HTTPException(status_code=410, detail="File vanished from storage")
+    except Exception:
+        # SI FALLA MINIO (Archivo borrado manualmente):
+        # 1. Cambiamos el estado en la DB a 'pending' otra vez
+        translation.status = "pending"
+        await db.commit()
+        
+        # 2. Disparamos la regeneración (tu función existente)
+        await TranslationService.trigger_regeneration(db, translation)
+        
+        # 3. Informamos al frontend que se está regenerando
+        raise HTTPException(
+            status_code=202, 
+            detail="File was missing in storage. Regeneration triggered automatically. Please wait."
+        )
