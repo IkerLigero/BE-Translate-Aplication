@@ -1,49 +1,49 @@
-from sqlalchemy.ext.asyncio import AsyncSession # Cambiado de Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.translation import Translation
+from app.models.user import User
 from app.worker.tasks import process_pdf_task
 from zoneinfo import ZoneInfo
-from sqlalchemy import select
+
 
 class TranslationService:
     @staticmethod
+    # This function prepares a dictionary with all the necessary data to generate the PDF, which will be sent to the Celery task.
     def get_pdf_data_dict(translation: Translation) -> dict:
-        """Mantiene la lógica de formato de datos para el Worker"""
         return {
             "id": str(translation.id),
+            "user_id": translation.user_id, # User ID for reference
             "source_lang": translation.source_lang,
             "pdf_lang": translation.pdf_lang,
             "target_lang": translation.target_language,
             "original_text": translation.original_text,
             "translated_text": translation.translated_text,
-            "date": translation.created_at.astimezone(ZoneInfo("Europe/Madrid")).strftime("%Y-%m-%d %H:%M:%S") if translation.created_at else ""
+            "date": translation.created_at.astimezone(ZoneInfo("Europe/Brussels")).strftime("%Y-%m-%d %H:%M:%S") if translation.created_at else ""
         }
 
+    # This function creates a new translation record in the database, starts the PDF generation process asynchronously, and returns the created translation.
     @staticmethod
-    async def create_translation_process(db: AsyncSession, payload) -> Translation:
-        """Lógica asíncrona para crear en DB y lanzar Worker"""
-        # 1. Create DB entry with status "pending"
+    async def create_translation_process(db: AsyncSession, payload, current_user: User) -> Translation:
         db_translation = Translation(
             original_text=payload.text_to_translate,
             source_lang=payload.source_lang,
             pdf_lang=payload.pdf_lang,
             target_language=payload.target_lang,
+            user_id=current_user.id,
             status="pending"
         )
         
         db.add(db_translation)
-        # In AsyncSession, commit and refresh MUST be awaited
         await db.commit()
         await db.refresh(db_translation)
         
-        # 2. Prepare data for the worker
         pdf_data = TranslationService.get_pdf_data_dict(db_translation)
-        
-        # 3. Launch Celery task (this is still .delay(), no need to await)
         process_pdf_task.delay(db_translation.id, pdf_data)
         
         return db_translation
-
+    
+    
     @staticmethod
+    # This function can be called to force the regeneration of the PDF for a given translation, and it will also ensure that only the owner can trigger this action.
     async def trigger_regeneration(db: AsyncSession, translation: Translation):
         """Asynchronous logic to force regeneration"""
         pdf_data = TranslationService.get_pdf_data_dict(translation)

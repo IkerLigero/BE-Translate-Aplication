@@ -1,15 +1,11 @@
 import time
 import os
 
-# Nota: Asegúrate de que la ruta de importación sea correcta según tu estructura
-# Si este archivo está en locust/tasks/, quizás necesites ajustar el sys.path 
-# o importar directamente si el entorno lo permite.
-# from core.storage import s3_client 
 
 def list_translations(user):
     """
     Endpoint 1: GET /translations
-    Lista todas las traducciones existentes.
+    List all existing translations for the authenticated user.
     """
     with user.client.get("/translations", name="GET /translations", catch_response=True) as response:
         if response.status_code == 200:
@@ -20,7 +16,7 @@ def list_translations(user):
 def create_translation(user):
     """
     Endpoint 2: POST /translations
-    Crea una nueva traducción con el payload completo requerido (4 campos).
+    Create a new translation with the complete required payload (4 fields).
     """
     payload = {
         "text_to_translate": "Texto de prueba para carga asíncrona",
@@ -38,7 +34,7 @@ def create_translation(user):
 def create_and_regenerate(user):
     """
     Endpoint 3: POST /translations/{id}/generate
-    Crea una traducción y solicita su regeneración.
+    Create a translation and request its regeneration.
     """
     payload = {
         "text_to_translate": "Texto para forzar regeneración",
@@ -51,7 +47,7 @@ def create_and_regenerate(user):
         if response.status_code in [200, 201]:
             translation_id = response.json().get("id")
             
-            # Agrupamos por nombre fijo para evitar filas infinitas en Locust
+            # Group by fixed name to avoid infinite queues in Locust
             with user.client.post(
                 f"/translations/{translation_id}/generate", 
                 name="POST /translations/{id}/generate", 
@@ -67,7 +63,7 @@ def create_and_regenerate(user):
 def create_and_get_status(user):
     """
     Endpoint 4: GET /translations/{id}
-    Consulta los detalles/estado de una traducción específica.
+    Check the details/status of a specific translation.
     """
     payload = {
         "text_to_translate": "Verificando estado de la traducción",
@@ -95,7 +91,7 @@ def create_and_get_status(user):
 def create_and_download_pdf(user):
     """
     Endpoint 5: GET /translations/{id}/pdf (Pre-signed URL)
-    Simula el flujo de un usuario que crea un documento y luego descarga la URL firmada.
+    Simulate the flow of a user who creates a document and then downloads the signed URL.
     """
     payload = {
         "text_to_translate": "Generando PDF para test de URL firmada",
@@ -104,29 +100,29 @@ def create_and_download_pdf(user):
         "target_lang": "es"
     }
     
-    # 1. Crear
+    # Step 1: Create the translation
     with user.client.post("/translations", json=payload, name="POST /translations (for PDF)", catch_response=True) as response:
         if response.status_code in [200, 201]:
             translation_id = response.json().get("id")
             
-            # Simulamos tiempo de espera para que el worker procese
+            # Simulate user waiting for the PDF to be generated (since it's async, we might need to wait a bit before the PDF is ready)
             time.sleep(1)
             
-            # 2. Obtener la Pre-signed URL
+            # Step 2: Get the Pre-signed URL
             with user.client.get(
                 f"/translations/{translation_id}/pdf", 
                 name="GET /translations/{id}/pdf (Presigned)", 
                 catch_response=True
             ) as pdf_response:
                 if pdf_response.status_code == 200:
-                    # Validamos que el backend nos da el JSON con la URL
+                    # Validate that the backend provides the JSON with the URL
                     data = pdf_response.json()
                     if "download_url" in data:
                         pdf_response.success()
                     else:
                         pdf_response.failure("200 OK but 'download_url' missing in JSON")
                 elif pdf_response.status_code == 202:
-                    pdf_response.success() # Aceptamos "todavía procesando" como éxito de flujo
+                    pdf_response.success() # Accept "still processing" as a successful flow
                 else:
                     pdf_response.failure(f"PDF error: {pdf_response.status_code}")
         else:
