@@ -26,9 +26,11 @@ app.include_router(api_router)
 def read_root():
     return {"message": "Translation API is ready and open for the Frontend"}
 
+# Database initialization - This will create the tables in the database based on the models defined (User and Translation) when the app starts.
 @app.on_event("startup")
 async def startup_event():
     async with engine.begin() as conn:
-        # Esto lee tus clases User y Translation y crea las tablas en Postgres
+        # This line creates all the tables in the database based on the models defined in Base (which includes User and Translation).
+        # It ensures that the database schema is ready when the application starts.
         await conn.run_sync(Base.metadata.create_all)
     print("Base de datos sincronizada!")

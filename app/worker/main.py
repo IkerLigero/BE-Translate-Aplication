@@ -10,7 +10,7 @@ celery_app = Celery(
 # Autodiscover tasks in the 'app.worker' module
 celery_app.autodiscover_tasks(['app.worker'], force=True) 
 
-
+# This setting ensures that if the Redis broker is not available when the worker starts, it will keep trying to connect instead of crashing immediately.
 celery_app.conf.update(
     broker_connection_retry_on_startup=True
 )

@@ -1,49 +1,38 @@
-import sys
+import asyncio
 import os
+import sys
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
-from alembic import context
 
+from sqlalchemy import pool
+from sqlalchemy.ext.asyncio import async_engine_from_config
+from alembic import context
+from dotenv import load_dotenv
+
+# 1. Añadimos la raíz del proyecto al path para que encuentre el módulo 'app'
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# 2. Cargamos variables de entorno desde el .env
+load_dotenv()
 
-from app.db.base_class import Base
-from app.models.translation import Translation 
-
+# 3. Importamos la Base que tiene todos los modelos cargados
+# Asegúrate de haber creado app/db/base.py con las importaciones de User y Translation
+from app.db.base import Base 
 target_metadata = Base.metadata
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# Este es el objeto de configuración de Alembic
 config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
+# 4. Forzamos a Alembic a usar la URL de la base de datos de nuestro .env
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url)
+
+# Configuración de logging
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
-
-
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
-    """
+    """Modo offline: genera scripts SQL sin conectarse a la DB."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -55,30 +44,36 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+def do_run_migrations(connection):
+    """Función auxiliar síncrona para ejecutar las migraciones."""
+    context.configure(connection=connection, target_metadata=target_metadata)
 
-def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
+    with context.begin_transaction():
+        context.run_migrations()
 
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
-    connectable = engine_from_config(
+async def run_migrations_online() -> None:
+    """Modo online: para motores asíncronos como asyncpg."""
+    
+    # Creamos la configuración para el motor asíncrono
+    connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
-    with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+    async with connectable.connect() as connection:
+        # Ejecutamos la migración síncrona dentro del contexto asíncrono
+        await connection.run_sync(do_run_migrations)
 
-        with context.begin_transaction():
-            context.run_migrations()
-
+    await connectable.dispose()
 
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    run_migrations_online()
+    # 5. Ejecutamos el loop de asyncio para la conexión online
+    try:
+        asyncio.run(run_migrations_online())
+    except RuntimeError:
+        # En caso de que ya exista un event loop activo
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(run_migrations_online())

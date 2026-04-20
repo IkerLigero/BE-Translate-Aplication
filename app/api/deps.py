@@ -10,37 +10,42 @@ from app.core.security import SECRET_KEY, ALGORITHM
 from app.db.session import get_async_db
 from app.models.user import User
 
-# Esto le dice a FastAPI que busque el token en el endpoint /login
+# This file contains the dependency to get the current user from the token, ensuring that users can only access their own data.
+# It also includes the OAuth2PasswordBearer configuration to specify where the token should be obtained from. 
+
+# This line tells FastAPI that the token will be sent to the /login endpoint.
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl="/login")
 
+# Function to get the current user based on the token.
 async def get_current_user(
     db: AsyncSession = Depends(get_async_db),
     token: str = Depends(reusable_oauth2)
 ) -> User:
     try:
-        # 1. Decodificar el token
+        # 1. Decode the token
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
+        # 2. Validate the token and check if the user_id is present
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No se pudo validar el token",
+                detail="Could not validate credentials",
             )
     except (jwt.JWTError, ValidationError):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Token inválido o expirado",
+            detail="Invalid or expired token",
         )
 
-    # 2. Buscar al usuario en la DB
+    # 3. Fetch the user from the database
     result = await db.execute(select(User).where(User.id == int(user_id)))
     user = result.scalar_one_or_none()
 
     if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        raise HTTPException(status_code=404, detail="User not found")
     
-    # 3. Verificar si sigue activo
+    # 4. Check if the user is still active
     if not user.is_active:
-        raise HTTPException(status_code=400, detail="Usuario inactivo")
+        raise HTTPException(status_code=400, detail="Inactive user")
         
     return user
