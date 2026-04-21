@@ -12,6 +12,7 @@
 #let original_text = sys.inputs.at("original_text", default: "")
 #let translated_text = sys.inputs.at("translated_text", default: "")
 #let date = sys.inputs.at("date", default: "")
+#let user_email = sys.inputs.at("user_email", default: "N/A")
 
 // Text and language configuration
 #set page(paper: "a4", margin: 2cm)
@@ -21,9 +22,11 @@
 // --- DESIGN ---
 #grid(
   columns: (1fr, 1fr),
-  // linguify uses pdf_lang as the key for the TOML database
   [#text(size: 18pt, weight: "bold")[#linguify("title", lang: pdf_lang)]],
-  align(right)[#text(style: "italic")[ID: #id]]
+  align(right)[
+    #text(style: "italic")[ID: #id] \
+    #text(size: 9pt)[#linguify("report_by", lang: pdf_lang): #user_email] // <--- LÍNEA NUEVA
+  ]
 )
 
 #line(length: 100%, stroke: 0.5pt + gray)

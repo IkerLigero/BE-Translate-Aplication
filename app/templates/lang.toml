@@ -9,6 +9,7 @@ orig_text = "Original Text"
 trans_res = "Translated Result"
 pending = "Pending..."
 gen_on = "Generated on"
+report_by = "Report prepared by"
 
 [lang.es]
 title = "Informe de Traducción"
@@ -18,6 +19,7 @@ orig_text = "Texto Original"
 trans_res = "Resultado"
 pending = "Pendiente..."
 gen_on = "Generado el"
+report_by = "Reporte realizado por"
 
 [lang.de]
 title = "Übersetzungsbericht"
@@ -27,6 +29,7 @@ orig_text = "Originaltext"
 trans_res = "Übersetztes Ergebnis"
 pending = "Übersetzung ausstehend..."
 gen_on = "Generiert am"
+report_by = "Bericht erstellt von"
 
 [lang.fr]
 title = "Rapport de Traduction"
@@ -36,3 +39,4 @@ orig_text = "Texte Original"
 trans_res = "Résultat Traduit"
 pending = "Traduction en attente..."
 gen_on = "Généré le"
+report_by = "Rapport préparé par"

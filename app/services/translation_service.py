@@ -13,6 +13,7 @@ class TranslationService:
             "id": str(translation.id),
             "user_id": translation.user_id, # User ID for reference
             "source_lang": translation.source_lang,
+            "user_email": translation.owner.email if translation.owner else "N/A",
             "pdf_lang": translation.pdf_lang,
             "target_lang": translation.target_language,
             "original_text": translation.original_text,
