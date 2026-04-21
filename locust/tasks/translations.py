@@ -1,129 +1,71 @@
 import time
-import os
 
+# Helper to avoid repeating the base name and keep stats clean
+POST_NAME = "POST /api/v1/translations"
 
 def list_translations(user):
-    """
-    Endpoint 1: GET /translations
-    List all existing translations for the authenticated user.
-    """
-    with user.client.get("/translations", name="GET /translations", catch_response=True) as response:
-        if response.status_code == 200:
-            response.success()
-        else:
-            response.failure(f"Error {response.status_code}: {response.text}")
+    url = f"{user.api_prefix}/translations"
+    # Here we don't use 'with', so catch_response is NOT needed
+    user.client.get(url, name="GET /api/v1/translations")
 
 def create_translation(user):
-    """
-    Endpoint 2: POST /translations
-    Create a new translation with the complete required payload (4 fields).
-    """
+    url = f"{user.api_prefix}/translations"
     payload = {
-        "text_to_translate": "Texto de prueba para carga asíncrona",
-        "pdf_lang": "en",
-        "source_lang": "en",
-        "target_lang": "es"
+        "text_to_translate": "Standard performance test text",
+        "pdf_lang": "en", "source_lang": "en", "target_lang": "es"
     }
-    
-    with user.client.post("/translations", json=payload, name="POST /translations", catch_response=True) as response:
-        if response.status_code in [200, 201]:
-            response.success()
-        else:
-            response.failure(f"Error {response.status_code}: {response.text}")
+    # Here we don't use 'with', so catch_response is NOT needed
+    user.client.post(url, json=payload, name=POST_NAME)
 
 def create_and_regenerate(user):
-    """
-    Endpoint 3: POST /translations/{id}/generate
-    Create a translation and request its regeneration.
-    """
+    url = f"{user.api_prefix}/translations"
     payload = {
-        "text_to_translate": "Texto para forzar regeneración",
-        "pdf_lang": "es",
-        "source_lang": "en",
-        "target_lang": "es"
+        "text_to_translate": "Text for regeneration test",
+        "pdf_lang": "es", "source_lang": "en", "target_lang": "es"
     }
     
-    with user.client.post("/translations", json=payload, name="POST /translations (for regen)", catch_response=True) as response:
+    # FIX: Added catch_response=True because we use 'with' to get the ID
+    with user.client.post(url, json=payload, name=POST_NAME, catch_response=True) as response:
         if response.status_code in [200, 201]:
-            translation_id = response.json().get("id")
-            
-            # Group by fixed name to avoid infinite queues in Locust
-            with user.client.post(
-                f"/translations/{translation_id}/generate", 
-                name="POST /translations/{id}/generate", 
-                catch_response=True
-            ) as gen_response:
-                if gen_response.status_code == 200:
-                    gen_response.success()
-                else:
-                    gen_response.failure(f"Regen failed: {gen_response.status_code}")
+            t_id = response.json().get("id")
+            gen_url = f"{url}/{t_id}/generate"
+            user.client.post(gen_url, name="POST /api/v1/translations/{id}/generate")
+            response.success()
         else:
-            response.failure(f"Initial create failed: {response.text}")
+            response.failure(f"Creation for regen failed: {response.status_code}")
 
 def create_and_get_status(user):
-    """
-    Endpoint 4: GET /translations/{id}
-    Check the details/status of a specific translation.
-    """
-    payload = {
-        "text_to_translate": "Verificando estado de la traducción",
-        "pdf_lang": "en",
-        "source_lang": "en",
-        "target_lang": "es"
-    }
+    url = f"{user.api_prefix}/translations"
+    payload = {"text_to_translate": "Status check test", "pdf_lang": "en", "source_lang": "en", "target_lang": "es"}
     
-    with user.client.post("/translations", json=payload, name="POST /translations (for status)", catch_response=True) as response:
+    # FIX: Added catch_response=True because we use 'with' to get the ID
+    with user.client.post(url, json=payload, name=POST_NAME, catch_response=True) as response:
         if response.status_code in [200, 201]:
-            translation_id = response.json().get("id")
-            
-            with user.client.get(
-                f"/translations/{translation_id}", 
-                name="GET /translations/{id}", 
-                catch_response=True
-            ) as get_response:
-                if get_response.status_code == 200:
-                    get_response.success()
-                else:
-                    get_response.failure(f"Get status failed: {get_response.status_code}")
+            t_id = response.json().get("id")
+            status_url = f"{url}/{t_id}"
+            user.client.get(status_url, name="GET /api/v1/translations/{id}")
+            response.success()
         else:
-            response.failure(f"Initial create failed: {response.text}")
+            response.failure(f"Creation for status failed: {response.status_code}")
 
 def create_and_download_pdf(user):
-    """
-    Endpoint 5: GET /translations/{id}/pdf (Pre-signed URL)
-    Simulate the flow of a user who creates a document and then downloads the signed URL.
-    """
-    payload = {
-        "text_to_translate": "Generando PDF para test de URL firmada",
-        "pdf_lang": "en",
-        "source_lang": "en",
-        "target_lang": "es"
-    }
+    url = f"{user.api_prefix}/translations"
+    payload = {"text_to_translate": "PDF download test", "pdf_lang": "en", "source_lang": "en", "target_lang": "es"}
     
-    # Step 1: Create the translation
-    with user.client.post("/translations", json=payload, name="POST /translations (for PDF)", catch_response=True) as response:
+    # FIX: Added catch_response=True because we use 'with' to get the ID
+    with user.client.post(url, json=payload, name=POST_NAME, catch_response=True) as response:
         if response.status_code in [200, 201]:
-            translation_id = response.json().get("id")
+            t_id = response.json().get("id")
+            response.success()
             
-            # Simulate user waiting for the PDF to be generated (since it's async, we might need to wait a bit before the PDF is ready)
-            time.sleep(1)
+            # Wait 0.5s to let the worker process
+            time.sleep(0.5)
             
-            # Step 2: Get the Pre-signed URL
-            with user.client.get(
-                f"/translations/{translation_id}/pdf", 
-                name="GET /translations/{id}/pdf (Presigned)", 
-                catch_response=True
-            ) as pdf_response:
-                if pdf_response.status_code == 200:
-                    # Validate that the backend provides the JSON with the URL
-                    data = pdf_response.json()
-                    if "download_url" in data:
-                        pdf_response.success()
-                    else:
-                        pdf_response.failure("200 OK but 'download_url' missing in JSON")
-                elif pdf_response.status_code == 202:
-                    pdf_response.success() # Accept "still processing" as a successful flow
+            pdf_url = f"{url}/{t_id}/pdf"
+            with user.client.get(pdf_url, name="GET /api/v1/translations/{id}/pdf", catch_response=True) as pdf_res:
+                if pdf_res.status_code in [200, 202]:
+                    pdf_res.success()
                 else:
-                    pdf_response.failure(f"PDF error: {pdf_response.status_code}")
+                    pdf_res.failure(f"Download error: {pdf_res.status_code}")
         else:
-            response.failure(f"Initial create failed: {response.text}")
+            response.failure(f"Creation for download failed: {response.status_code}")

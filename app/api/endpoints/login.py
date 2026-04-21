@@ -1,3 +1,4 @@
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,32 +10,37 @@ from app.core.security import verify_password, create_access_token
 
 router = APIRouter()
 
-# Endpoint for user login, which also checks if the account is active before issuing a token
 @router.post("/login")
 async def login(
     db: AsyncSession = Depends(get_async_db),
     form_data: OAuth2PasswordRequestForm = Depends()
 ):
-    # 1. Search for the user in the database by email (username)
+    # 1. Buscar usuario
     result = await db.execute(select(User).where(User.email == form_data.username))
     user = result.scalar_one_or_none()
 
-    # 2. Validations if the user exists and if the password is correct
+    # 2. Validar contraseña
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email or password incorrect",
         )
 
-    # 3. Check if the user account is active
+    # 3. Validar cuenta activa
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is deactivated. Please contact the administrator.",
+            detail="User account is deactivated.",
         )
 
-    # 4. Generate the Token
-    access_token = create_access_token(subject=user.id)
+    # 4. GENERACIÓN DE TOKEN CON EXPIRACIÓN CORTA (PARA TEST)
+    # Session expires after 24 hours
+    access_token_expires = timedelta(hours=24) 
+    
+    access_token = create_access_token(
+        subject=user.id, 
+        expires_delta=access_token_expires
+    )
     
     return {
         "access_token": access_token,
