@@ -12,6 +12,7 @@ class TranslationUser(HttpUser):
     wait_time = between(1, 2)
     api_prefix = "/api/v1"
 
+    # This method runs when a simulated user starts. It creates a unique user and logs in to get an access token for authenticated requests.
     def on_start(self):
         """ 
         Registers and authenticates a unique user for this session.
@@ -38,11 +39,13 @@ class TranslationUser(HttpUser):
             else:
                 response.failure(f"Setup login failed: {response.status_code}")
 
+    # The following tasks simulate user interactions with the translations endpoints, with different weights to reflect typical usage patterns.
+    # Each task calls a helper function that performs the actual API calls and checks responses as needed.
     @task(5)
     def test_list(self):
         list_translations(self)
     
-    @task(3) # Increased weight: creation is the core of the app
+    @task(3)
     def test_create_only(self):
         create_translation(self)
         

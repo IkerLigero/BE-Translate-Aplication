@@ -4,7 +4,7 @@ from app.api.api import api_router
 
 app = FastAPI(title="TMS - Translation Management System", redirect_slashes=False)
 
-# Configuramos CORS
+# CORS configuration - adjust origins as needed for security in production
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,12 +13,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Incluimos el router único que ya trae toda la estructura
+# Include API router with versioning prefix
 app.include_router(api_router, prefix="/api/v1")
 
+# Root endpoint for health check or welcome message
 @app.get("/")
 def read_root():
     return {"message": "Translation API is ready and open for the Frontend"}
-
-# Eliminamos startup_event con Base.metadata.create_all 
-# porque ahora gestionas la DB con Alembic.

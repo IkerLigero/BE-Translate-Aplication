@@ -3,6 +3,7 @@ import time
 # Helper to avoid repeating the base name and keep stats clean
 POST_NAME = "POST /api/v1/translations"
 
+
 def list_translations(user):
     url = f"{user.api_prefix}/translations"
     # Here we don't use 'with', so catch_response is NOT needed

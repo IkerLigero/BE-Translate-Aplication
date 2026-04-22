@@ -10,7 +10,7 @@ from app.core.security import SECRET_KEY, ALGORITHM
 from app.db.session import get_async_db
 from app.models.user import User
 
-# El tokenUrl debe coincidir con tu nueva ruta refactorizada
+# tokenUrl must match the login endpoint defined in your API router
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 
 async def get_current_user(
@@ -18,7 +18,7 @@ async def get_current_user(
     token: str = Depends(reusable_oauth2)
 ) -> User:
     try:
-        # Decode valida automáticamente la firma y la expiración (exp)
+        # Decode automatically validates the signature and expiration (exp)
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         
@@ -30,21 +30,21 @@ async def get_current_user(
             )
             
     except ExpiredSignatureError:
-        # Caso específico: el token ha caducado
+        # Specific case: the token has expired
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired. Please log in again.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     except (JWTError, ValidationError):
-        # Otros errores de JWT (firma falsa, formato incorrecto)
+        # Other JWT errors (invalid signature, incorrect format)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Buscar usuario en DB
+    # Fetch user from DB
     result = await db.execute(select(User).where(User.id == int(user_id)))
     user = result.scalar_one_or_none()
 
