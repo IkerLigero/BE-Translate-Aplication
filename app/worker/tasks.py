@@ -8,6 +8,7 @@ from app.models.translation import Translation
 from app.models.user import User  
 from deep_translator import GoogleTranslator
 from app.core.storage import upload_pdf_to_minio
+from sqlalchemy.orm import joinedload
 
 # Configure logging to see errors in Celery logs
 logger = logging.getLogger(__name__)
@@ -28,11 +29,22 @@ def process_pdf_task(self, translation_id: int, pdf_data: dict):
     
     try:
         # Fetch the translation record from the database
-        translation = db.query(Translation).filter(Translation.id == translation_id).first()
+        translation = db.query(Translation).options(
+            joinedload(Translation.owner)
+        ).filter(Translation.id == translation_id).first()
         
         if not translation:
             logger.error(f"Translation ID {translation_id} not found in database.")
             return "Error: ID not found"
+
+        if translation and translation.owner:
+            # Metemos el email real en la caja que va al service
+            pdf_data["user_email"] = translation.owner.email
+        else:
+            pdf_data["user_email"] = "N/A"
+        
+        # Sincronizamos el email del usuario en pdf_data
+        pdf_data["user_email"] = translation.owner.email if translation.owner else "N/A"
 
         # 1. Sync data to ensure we have the latest info from the DB
         pdf_data["pdf_lang"] = translation.pdf_lang

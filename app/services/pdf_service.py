@@ -31,6 +31,7 @@ def generate_translation_pdf_bytes(data: dict) -> bytes:
         print(f"Error in date patch: {e}")
         formatted_date = str(raw_date) # If it fails, break the app
 
+    
     # Build the command with all inputs as --input key=value
     command = [
         "typst", "compile", template_name, output_filename,
@@ -40,7 +41,8 @@ def generate_translation_pdf_bytes(data: dict) -> bytes:
         "--input", f"pdf_lang={data.get('pdf_lang', 'en')}", 
         "--input", f"original_text={data['original_text']}",
         "--input", f"translated_text={data.get('translated_text') or ''}",
-        "--input", f"date={formatted_date}"
+        "--input", f"date={formatted_date}",
+        "--input", f"user_email={data.get('user_email', 'N/A')}"
     ]
     
     try:
