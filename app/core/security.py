@@ -6,7 +6,7 @@ from passlib.context import CryptContext
 # --- Configuration ---
 SECRET_KEY = "your_super_secure_secret_key_for_tms" 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours default
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

@@ -41,7 +41,7 @@ async def get_translations(
 # Now this endpoint also requires the current user, so we can link the translation to them
 async def create(
     payload: TranslationCreate, 
-    db: AsyncSession = Depends(get_async_db),
+    db: AsyncSession = Depends(get_async_db), # We need the DB session to create the translation record and start the background process
     current_user: User = Depends(get_current_user) # Security added to link translation to user
     ):
     # Calls the function that creates the translation and starts the background process, passing the current user's ID
@@ -99,10 +99,12 @@ async def download_pdf(
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user)
 ):
+    # First, we check if the translation exists and belongs to the user. This ensures that only the owner can attempt to download the PDF.
     query = select(Translation).where(
         Translation.id == translation_id,
         Translation.user_id == current_user.id
     )
+    # If the translation doesn't exist or doesn't belong to the user, we return a 404 error.
     result = await db.execute(query)
     translation = result.scalar_one_or_none()
 
@@ -120,7 +122,7 @@ async def download_pdf(
         )
         
     except Exception:
-        # IF MINIO FAILS (File manually deleted):
+        # IF MINIO FAILS (File manually deleted or corrupted):
         # 1. Change the status in the DB to 'pending' again
         translation.status = "pending"
         await db.commit()

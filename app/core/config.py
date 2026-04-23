@@ -1,6 +1,8 @@
 # app/core/config.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# This file centralizes all configuration settings for the application, including secrets and environment variables.
+
 class Settings(BaseSettings):
     # API Settings
     PROJECT_NAME: str = "CarbonAltDelete"
@@ -14,7 +16,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "secret" 
     ALGORITHM: str = "HS256"
 
-    # This replaces the old 'class Config' in Pydantic v2
+    # Environment variables
     model_config = SettingsConfigDict(
         env_file=".env", 
         env_file_encoding="utf-8",

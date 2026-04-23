@@ -22,13 +22,15 @@ async def get_current_user(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         
+        # If the token is valid but doesn't contain a user ID, we treat it as an invalid token.
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token invalid: subject missing",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-            
+    
+    # If the token is expired, we want to catch that specific error to provide a clearer message to the client.       
     except ExpiredSignatureError:
         # Specific case: the token has expired
         raise HTTPException(

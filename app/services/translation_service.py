@@ -38,6 +38,7 @@ class TranslationService:
         await db.refresh(db_translation)
         
         pdf_data = TranslationService.get_pdf_data_dict(db_translation)
+        # Call the Celery task to process the PDF in the background, passing the translation ID and the prepared data dictionary.
         process_pdf_task.delay(db_translation.id, pdf_data)
         
         return db_translation
