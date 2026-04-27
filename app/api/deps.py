@@ -10,7 +10,7 @@ from app.core.security import SECRET_KEY, ALGORITHM
 from app.db.session import get_async_db
 from app.models.user import User
 
-# tokenUrl must match the login endpoint defined in your API router
+# Search the token in the headers. If it's valid, we decode it and return the user. If not, we raise an HTTP 401 error.
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 
 async def get_current_user(

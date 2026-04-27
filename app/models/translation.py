@@ -8,7 +8,7 @@ class Translation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    original_text = Column(Text, nullable=False)
+    original_text = Column(String(4500), nullable=False)
     target_language = Column(String, nullable=False)
     pdf_lang = Column(String, nullable=False)
     source_lang = Column(String, nullable=False)

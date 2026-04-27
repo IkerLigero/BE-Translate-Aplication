@@ -16,7 +16,7 @@ class TranslationCreate(BaseModel):
 class TranslationResponse(BaseModel):
     id: int
     user_id: int
-    original_text: str 
+    original_text: str = Field(..., max_length=4500) 
     translated_text: Optional[str] = None
     source_lang: str
     pdf_lang: str

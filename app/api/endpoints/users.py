@@ -23,7 +23,7 @@ async def create_user_admin(
 
     # 1. Security Check: Validate the Shared Registration Secret
     # This prevents unauthorized users or clients from creating new accounts
-    if user_in.registration_secret != settings.REGISTRATION_SECRET:
+    if user_in.registration_secret != settings.REGISTRATION_SECRET: # Ensure this secret is securely stored and not hardcoded
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid registration secret. Access denied."

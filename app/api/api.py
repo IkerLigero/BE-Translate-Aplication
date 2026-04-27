@@ -11,9 +11,6 @@ api_router = APIRouter()
 # Public routers uses the endpoints without the get_current_user dependency, allowing access without a token.
 # Login must be public to obtain the token.
 api_router.include_router(login.router, tags=["Auth"])
-
-# User registration is usually public (depends on your logic, 
-# if only an admin creates users, move it below).
 api_router.include_router(users.router, prefix="/users", tags=["Users"])
 
 

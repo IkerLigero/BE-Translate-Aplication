@@ -25,7 +25,7 @@ router = APIRouter()
 @router.get("", response_model=List[TranslationResponse])
 async def get_translations(
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_user) # Lo mantenemos porque usamos su ID
+    current_user: User = Depends(get_current_user)
     ):
     # List only translations that belong to the current user, ordered by creation date
     result = await db.execute(
@@ -115,6 +115,7 @@ async def download_pdf(
     try:
         # Attempt to retrieve the file from MinIO
         file_stream = get_pdf_from_minio(translation.file_path)
+        # If the file is successfully retrieved, we return it as a streaming response with the appropriate headers for downloading.
         return StreamingResponse(
             file_stream,
             media_type="application/pdf",
