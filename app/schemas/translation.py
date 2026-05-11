@@ -22,6 +22,7 @@ class TranslationResponse(BaseModel):
     pdf_lang: str
     target_language: str = Field(alias="target_language") 
     status: str
+    similarity_score: Optional[float] = Field(None, description="Semantic similarity from 0 to 1")
     created_at: datetime 
     file_path: Optional[str] = None
 

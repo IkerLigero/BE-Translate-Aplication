@@ -25,7 +25,6 @@ from app.core.vectors import search_similar_translations
 router = APIRouter()
 
 
-# 0. GET /translations/search?q=: Search in history with semantic similarity (only owner)   
 @router.get("/search", response_model=List[TranslationResponse])
 async def search_history(
     q: str,
@@ -33,26 +32,40 @@ async def search_history(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Search in the user's history using semantic similarity (OpenAI Embeddings).
-    Returns the top 5 most relevant documents based on the original text.
+    Search with semantic similarity and a minimum similarity threshold (cutoff).
     """
-    # 1. Validate that the query is not empty
+    # 1. VALIDATION
     if not q or not q.strip():
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Search query cannot be empty"
         )
-        
-    # 2. Call the business logic to perform the vector search
-    results = await search_similar_translations(
-        db=db, 
-        user_id=current_user.id,  # Ensure we only search within the current user's translations
-        query_text=q,             # The text we want to find similar documents to
-        limit=5                   # Limit to top 5 results for relevance and performance
-    )
-    
-    return results
 
+    # 2. CORE LOGIC
+    raw_results = await search_similar_translations(
+        db=db,
+        user_id=current_user.id,
+        query_text=q,
+        limit=5
+    )
+
+    # 3. FORMATTING & FILTERING (Cutoff)
+    formatted_results = []
+    MIN_SIMILARITY_SCORE = 0.3
+    
+    for translation_obj, score in raw_results:
+        # Check if the result meets our quality standard
+        if score >= MIN_SIMILARITY_SCORE:
+            res_data = TranslationResponse.from_orm(translation_obj)
+            res_data.similarity_score = round(score, 4)
+            formatted_results.append(res_data)
+        else:
+            # Since results are ordered by similarity, 
+            # if one fails, the rest will too. We can break here.
+            break
+
+    # 4. RESPONSE
+    return formatted_results
 
 # 1. GET /translations: List all translations
 @router.get("", response_model=List[TranslationResponse])

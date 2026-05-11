@@ -42,20 +42,25 @@ def get_embedding(text: str):
 # Async function to search for similar translations based on cosine similarity
 async def search_similar_translations(db, user_id: int, query_text: str, limit: int = 5):
     """
-    1. Converts query to vector via OpenAI.
-    2. Performs cosine similarity search via pgvector (<=> operator).
-    3. Filters by user_id and active status.
+    1. Generate an embedding for the query text.
+    2. Use SQLAlchemy to query the database for translations of the user that have an embedding.
+    3. Calculate cosine similarity between the query embedding and the stored embeddings.
+    4. Order results by similarity and return the top matches.
     """
-    # Convert the search term into a vector
-    query_vector = get_embedding(query_text)
     
+    # Step 1: Get the embedding for the query text
+    query_vector = get_embedding(query_text)
     if not query_vector:
         return []
 
-    # Using pgvector's cosine_distance (<=>)
-    # We filter by user, active status and ensure the record has an embedding
+    # Step 2: Calculate cosine similarity between the query embedding and the stored embeddings
+    # Calculate the similarity: 1 - (vector <=> column)
+    # Multiply by 100 to get a percentage.
+    similarity_score = (1 - Translation.embedding.cosine_distance(query_vector)).label("similarity")
+
+    # Step 3: Query the database for translations that belong to the user, are active, and have an embedding
     stmt = (
-        select(Translation)
+        select(Translation, similarity_score) # Select the Translation and its similarity score
         .where(
             Translation.user_id == user_id,
             Translation.is_active == True,
@@ -65,5 +70,7 @@ async def search_similar_translations(db, user_id: int, query_text: str, limit: 
         .limit(limit)
     )
     
+    # Step 4: Execute the query and return results
     result = await db.execute(stmt)
-    return result.scalars().all()
+    # When returning Translation and similarity, SQLAlchemy returns tuples.
+    return result.all()
