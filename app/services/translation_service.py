@@ -4,26 +4,30 @@ from app.models.user import User
 from app.worker.tasks import process_pdf_task
 from zoneinfo import ZoneInfo
 
-
 class TranslationService:
+    
     @staticmethod
-    # This function prepares a dictionary with all the necessary data to generate the PDF, which will be sent to the Celery task.
-    def get_pdf_data_dict(translation: Translation) -> dict:
+    def get_minimal_pdf_data(translation: Translation) -> dict:
+        """
+        Prepares a minimal dictionary to trigger the background task.
+        Security: We only send the IDs. The Worker will fetch text and emails 
+        directly from the Database to prevent data tampering in the message queue.
+        """
         return {
             "id": str(translation.id),
-            "user_id": translation.user_id, # User ID for reference
-            "source_lang": translation.source_lang,
-            "user_email": translation.owner.email if translation.owner else "N/A",
-            "pdf_lang": translation.pdf_lang,
-            "target_lang": translation.target_language,
-            "original_text": translation.original_text,
-            "translated_text": translation.translated_text,
+            "user_id": translation.user_id, # Used by Worker to cross-check ownership
+            # We provide the date as context, but other sensitive fields 
+            # like 'original_text' are now handled by the Worker via DB lookup.
             "date": translation.created_at.astimezone(ZoneInfo("Europe/Brussels")).strftime("%Y-%m-%d %H:%M:%S") if translation.created_at else ""
         }
 
-    # This function creates a new translation record in the database, starts the PDF generation process asynchronously, and returns the created translation.
     @staticmethod
     async def create_translation_process(db: AsyncSession, payload, current_user: User) -> Translation:
+        """
+        Creates a new translation record and triggers the asynchronous processing.
+        Links the translation to the current authenticated user.
+        """
+        # 1. Create the database instance with data from the request payload
         db_translation = Translation(
             original_text=payload.text_to_translate,
             source_lang=payload.source_lang,
@@ -33,20 +37,30 @@ class TranslationService:
             status="pending"
         )
         
+        # 2. Persist to database
         db.add(db_translation)
         await db.commit()
         await db.refresh(db_translation)
         
-        pdf_data = TranslationService.get_pdf_data_dict(db_translation)
-        # Call the Celery task to process the PDF in the background, passing the translation ID and the prepared data dictionary.
+        # 3. Trigger the Celery task
+        # We use a minimal data dictionary for better security and smaller message size
+        pdf_data = TranslationService.get_minimal_pdf_data(db_translation)
+        
+        # Task receives the ID as primary key and the dict for security verification
         process_pdf_task.delay(db_translation.id, pdf_data)
         
         return db_translation
     
-    
     @staticmethod
-    # This function can be called to force the regeneration of the PDF for a given translation, and it will also ensure that only the owner can trigger this action.
     async def trigger_regeneration(db: AsyncSession, translation: Translation):
-        """Asynchronous logic to force regeneration"""
-        pdf_data = TranslationService.get_pdf_data_dict(translation)
+        """
+        Forces the regeneration of a PDF for an existing translation.
+        Used when a file is missing or a retry is manually requested.
+        """
+        # Update status to pending before re-triggering
+        translation.status = "pending"
+        await db.commit()
+
+        # Prepare minimal context and send to Worker
+        pdf_data = TranslationService.get_minimal_pdf_data(translation)
         process_pdf_task.delay(translation.id, pdf_data)

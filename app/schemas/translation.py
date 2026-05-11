@@ -28,3 +28,7 @@ class TranslationResponse(BaseModel):
     class Config:
         from_attributes = True
         populate_by_name = True
+        
+
+class DuplicateRequest(BaseModel):
+    new_target_lang: str = Field(..., min_length=2, max_length=2)

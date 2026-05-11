@@ -1,6 +1,8 @@
 import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import  Boolean # Asegúrate de importar Boolean
 from app.db.base_class import Base
 
 class Translation(Base):
@@ -14,6 +16,7 @@ class Translation(Base):
     source_lang = Column(String, nullable=False)
     status = Column(String, default="pending")
     translated_text = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(
             DateTime(timezone=True), 
             
@@ -23,3 +26,6 @@ class Translation(Base):
     
     # Relationship to the User model
     owner = relationship("User", back_populates="translations")
+    
+    # Vector embedding for semantic search
+    embedding = Column(Vector(1536), nullable=True)
