@@ -70,7 +70,7 @@ async def test_search_history_success(client, auth_override):
     ]
     
     with patch("app.api.endpoints.translations.search_similar_translations", 
-               new_callable=AsyncMock) as mock_search:
+            new_callable=AsyncMock) as mock_search:
         
         mock_search.return_value = mock_results
         

@@ -1,4 +1,5 @@
 services:
+  # --- Database (Postgres + pgvector) ---
   db:
     image: ankane/pgvector:v0.5.1
     container_name: backend_db
@@ -12,6 +13,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # --- Cache and Broker (Redis) ---
   redis:
     image: redis:7-alpine
     container_name: backend_redis
@@ -19,25 +21,7 @@ services:
     ports:
       - "6379:6379"
 
-  libretranslate:
-    image: libretranslate/libretranslate
-    container_name: backend_translator
-    ports:
-      - "5000:5000"
-    volumes:
-      - lt_data:/home/libretranslate/.local # Persist translation data
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: backend_pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-    depends_on:
-      - db
-
+  # --- File Storage (Minio) ---
   minio:
     image: minio/minio:latest
     container_name: backend_minio
@@ -52,21 +36,84 @@ services:
     volumes:
       - minio_data:/data
 
+  # --- Local Translator (LibreTranslate) ---
+  libretranslate:
+    image: libretranslate/libretranslate
+    container_name: backend_translator
+    ports:
+      - "5000:5000"
+    volumes:
+      - lt_data:/home/libretranslate/.local
+
+  # --- Your API (FastAPI) ---
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend_api
+    restart: always
+    depends_on:
+      - db
+      - redis
+      - minio
+      - libretranslate
+    environment:
+      # Internal connections to other services
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/tms_db
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=http://minio:9000
+      - TRANSLATOR_URL=http://libretranslate:5000
+      # Here you can add your OpenAI keys and other .env variables
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - /app/.venv
+
+  # --- Celery ---
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend_worker
+    restart: always
+    command: uv run celery -A app.worker.main.celery_app worker --loglevel=info -P solo
+    depends_on:
+      - db
+      - redis
+      - backend
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/tms_db
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - .:/app
+      - /app/.venv
+
+  # --- Database Management (pgAdmin) ---
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: backend_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
+  # --- Load Testing (Locust) ---
   locust:
     image: locustio/locust
     container_name: backend_locust
     environment:
       - PYTHONPATH=/mnt/locust
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     ports:
       - "8089:8089"
     volumes:
       - ./locust:/mnt/locust
     command: -f /mnt/locust/locustfile.py
     depends_on:
-      - db
-      - redis
+      - backend
 
 volumes:
   postgres_data:
