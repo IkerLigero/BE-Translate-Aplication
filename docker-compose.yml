@@ -72,22 +72,21 @@ services:
 
   # --- Celery ---
   worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: backend_worker
-    restart: always
-    command: uv run celery -A app.worker.main.celery_app worker --loglevel=info -P solo
-    depends_on:
-      - db
-      - redis
-      - backend
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/tms_db
-      - REDIS_URL=redis://redis:6379/0
-    volumes:
-      - .:/app
-      - /app/.venv
+      build:
+        context: .
+        dockerfile: Dockerfile
+      container_name: backend_worker
+      restart: always
+      command: uv run celery -A app.worker.main.celery_app worker --loglevel=info -P solo
+      depends_on:
+        - db
+        - redis
+        - backend
+      env_file:
+        - .env
+      volumes:
+        - .:/app
+        - /app/.venv
 
   # --- Database Management (pgAdmin) ---
   pgadmin:

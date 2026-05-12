@@ -1,10 +1,13 @@
+import os
 from celery import Celery
 
+
+redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
 # Celery configuration for the worker that processes PDF generation tasks in the background.
 celery_app = Celery(
     "pdf_worker",
-    broker="redis://127.0.0.1:6379/0", 
-    backend="redis://127.0.0.1:6379/0"
+    broker="redis://redis:6379/0",
+    backend="redis://redis:6379/0"
 )
 
 # Autodiscover tasks in the 'app.worker' module
